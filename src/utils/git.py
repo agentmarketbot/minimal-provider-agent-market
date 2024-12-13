@@ -281,10 +281,14 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
         if latest_comment_time is None or latest_issue_comment_time > latest_comment_time:
             latest_comment_time = latest_issue_comment_time
 
+
     if review_comments:
         latest_review_comment_time = review_comments[-1].created_at
         if latest_comment_time is None or latest_review_comment_time > latest_comment_time:
             latest_comment_time = latest_review_comment_time
+
+    if not latest_comment_time:
+        return False
 
     commits = list(pr.get_commits())
     if commits:
@@ -360,7 +364,7 @@ def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> 
     repo = g.get_repo(owner_repo)
     pr = repo.get_pull(pr_number)
 
-    comment = "## Aider:\n" "```\n" f"{logs}\n" "```"
+    comment = f"## Aider:\n{logs}\n"
 
     pr.create_issue_comment(comment)
     logger.info("Successfully added aider logs as PR comment")
