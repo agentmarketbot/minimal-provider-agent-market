@@ -37,7 +37,7 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[dic
         chat = response.json()
         if chat:
             logger.info(f"Instance id {instance_id} has chat messages. Looking for PR comments.")
-            pr_url = utils.get_pr_url("\n".join([m["message"] for m in chat["messages"]]))
+            pr_url = utils.get_pr_url("\n".join([m["message"] for m in chat]))
             if not pr_url:
                 logger.info(f"No PR URL found for instance id {instance_id}")
                 return None
