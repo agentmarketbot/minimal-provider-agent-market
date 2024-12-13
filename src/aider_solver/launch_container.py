@@ -6,7 +6,6 @@ from loguru import logger
 import re
 import openai
 from src.config import SETTINGS
-import time
 
 DOCKER_IMAGE = "paulgauthier/aider"
 load_dotenv()
@@ -30,7 +29,7 @@ def _clean_logs(logs: str) -> str:
     
     try:
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model=WEAK_MODEL,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that processes technical logs."},
                 {"role": "user", "content": prompt.format(logs=logs)}
@@ -43,8 +42,8 @@ def _clean_logs(logs: str) -> str:
         return logs
 
 def launch_container_with_repo_mounted(
-    repo_directory: str, model_name: str, instance_background: str, test_command: str, timeout: int = 60
-) -> None:
+    repo_directory: str, model_name: str, instance_background: str, test_command: str, timeout: int = 300
+) -> str:
     docker_client = docker_from_env()
     
     escaped_background = instance_background.replace("'", "'\"'\"'")
@@ -74,23 +73,14 @@ def launch_container_with_repo_mounted(
             tty=True,
             stdin_open=True,
         )
-        logger.info("Container launched. Streaming logs...")
+        logger.info("Container launched")
 
-        start_time = time.time()
-        for log in container.logs(stream=True, follow=True):
-            if time.time() - start_time > timeout:
-                logger.warning(f"Container execution timed out after {timeout} seconds")
-                container.stop()
-                break
-            try:    
-                print(log.decode('utf-8'), end='', flush=True)
-            except UnicodeDecodeError:
-                pass
+        result = container.wait(timeout=timeout)
+        container.stop()
 
-        logs = container.logs().decode("utf-8")
-        logs = _clean_logs(logs)
+        logs = _clean_logs(container.logs(stream=False).decode("utf-8"))
 
-        result = container.wait()
+        logger.info(f"Logs: {logs}")
 
         exit_status = result.get("StatusCode", -1)
         logger.info(f"Container finished with exit code: {exit_status}")
@@ -103,8 +93,11 @@ def launch_container_with_repo_mounted(
     except Exception as e:
         logger.error(f"Container execution failed: {e}")
         try:
+            logger.info(f"Logs: {container.logs(stream=False).decode('utf-8')}")
             container.stop()
             container.remove()
         except:
+            container.stop()
+            container.remove()
             pass
         raise
