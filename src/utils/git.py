@@ -36,13 +36,13 @@ def fork_repo(github_url: str, github_token: str) -> str:
     return forked_repo.clone_url
 
 
-def push_commits(repo_path: str, github_token: str) -> None:
+def push_commits(repo_path: str, github_token: str) -> bool:
     try:
         repo = git.Repo(repo_path)
 
         if repo.head.is_detached:
             logger.error("The HEAD is detached. Cannot push commits.")
-            return
+            return False
 
         if "main" not in repo.heads:
             main_branch = "master"
@@ -63,7 +63,7 @@ def push_commits(repo_path: str, github_token: str) -> None:
             repo.remotes.origin.set_url(remote_url)
 
         current_branch = repo.active_branch.name
-        repo.remotes.origin.push(refspec=f'{current_branch}:{current_branch}', set_upstream=True)
+        repo.remotes.origin.push(refspec=f"{current_branch}:{current_branch}", set_upstream=True)
         logger.info("Changes pushed to remote.")
         return True
     except Exception as e:
@@ -114,13 +114,13 @@ def create_pull_request(
 
         current_branch = repo.active_branch.name
         repo.remotes.origin.fetch()
-        
+
         try:
             comparison = target_repo.compare(
                 base=f"{target_repo.owner.login}:{base_branch}",
-                head=f"{source_repo.owner.login}:{current_branch}"
+                head=f"{source_repo.owner.login}:{current_branch}",
             )
-            
+
             if comparison.total_commits == 0:
                 logger.warning("No changes detected between source and target branches")
                 return "No changes needed"
