@@ -281,8 +281,6 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
         if latest_comment_time is None or latest_issue_comment_time > latest_comment_time:
             latest_comment_time = latest_issue_comment_time
 
-    if not latest_comment_time:
-        return False
 
     if review_comments:
         latest_review_comment_time = review_comments[-1].created_at
