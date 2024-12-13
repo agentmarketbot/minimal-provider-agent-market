@@ -99,5 +99,4 @@ def launch_container_with_repo_mounted(
         except:
             container.stop()
             container.remove()
-            pass
         raise
