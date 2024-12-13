@@ -1,4 +1,10 @@
-from .agent_market import get_pr_body, get_pr_title, remove_all_urls
+from .agent_market import (
+    get_latest_pr_comments,
+    get_pr_body,
+    get_pr_title,
+    get_solver_command,
+    remove_all_urls,
+)
 from .file_utils import change_directory_ownership_recursive, copy_file_to_directory
 from .git import (
     clone_repository,
@@ -25,4 +31,6 @@ __all__ = [
     "create_and_push_branch",
     "copy_file_to_directory",
     "change_directory_ownership_recursive",
+    "get_latest_pr_comments",
+    "get_solver_command",
 ]

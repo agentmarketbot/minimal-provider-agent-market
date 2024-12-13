@@ -51,13 +51,13 @@ def _clean_logs(logs: str) -> str:
 def launch_container_with_repo_mounted(
     repo_directory: str,
     model_name: str,
-    instance_background: str,
+    solver_command: str,
     test_command: str,
     timeout: int = 300,
 ) -> str:
     docker_client = docker_from_env()
 
-    escaped_background = instance_background.replace("'", "'\"'\"'")
+    escaped_solver_command = solver_command.replace("'", "'\"'\"'")
     escaped_test_command = shlex.quote(test_command) if test_command else ""
 
     test_args_and_command = f" --test-command {escaped_test_command}" if test_command else ""
@@ -66,8 +66,8 @@ def launch_container_with_repo_mounted(
         "/bin/bash",
         "-c",
         (
-            f"source /venv/bin/activate && python modify_repo.py --model-name {shlex.quote(model_name)} "
-            f"--instance-background '{escaped_background}'{test_args_and_command}"
+            f"source /venv/bin/activate && python modify_repo.py --model-name {shlex.quote(model_name)} "  # noqa: E501
+            f"--solver-command '{escaped_solver_command}'{test_args_and_command}"
         ),
     ]
 

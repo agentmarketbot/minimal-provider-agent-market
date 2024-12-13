@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 import openai
 
@@ -58,3 +59,13 @@ def remove_all_urls(text: str) -> str:
     text = text.replace("Repository URL:", "")
     text = text.replace("Issue URL:", "")
     return re.sub(r"https?:\/\/[^\s]+", "", text)
+
+
+def get_latest_pr_comments(repo_name: str, instance_id: str) -> Optional[str]:
+    return None
+
+
+def get_solver_command(instance_background: str, pr_comments: Optional[str]) -> str:
+    if not pr_comments:
+        return instance_background
+    return instance_background

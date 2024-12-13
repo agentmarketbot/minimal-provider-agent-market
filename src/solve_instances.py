@@ -1,8 +1,8 @@
 import os
 import tempfile
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
-from datetime import datetime, timedelta
 
 import httpx
 from loguru import logger
@@ -18,34 +18,46 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[dic
         "x-api-key": settings.market_api_key,
     }
     with httpx.Client(timeout=TIMEOUT) as client:
-        instance_url = f"{settings.market_url}/v1/instances/{instance_id}"
-        response = client.get(instance_url, headers=headers)
+        instance_endpoint = f"{settings.market_url}/v1/instances/{instance_id}"
+        response = client.get(instance_endpoint, headers=headers)
         instance = response.json()
 
         if instance["status"] != settings.market_resolved_instance_code:
             return None
 
+    repo_url = utils.find_github_repo_url(instance["background"])
+    if not repo_url:
+        logger.info(f"Instance id {instance_id} does not have a github repo url")
+        return None
+
     with httpx.Client(timeout=TIMEOUT) as client:
-        chat_url = f"{settings.market_url}/v1/chat/{instance_id}"
-        response = client.get(chat_url, headers=headers)
+        chat_endpoint = f"{settings.market_url}/v1/chat/{instance_id}"
+        response = client.get(chat_endpoint, headers=headers)
 
         chat = response.json()
         if chat:
-            logger.info(f"Instance id {instance_id} has chat messages. Skipping solving.")
-            return None
+            logger.info(f"Instance id {instance_id} has chat messages. Looking for PR comments.")
+            pr_comments = utils.get_latest_pr_comments(repo_url, instance_id)
+            if not pr_comments:
+                logger.info(f"No PR comments found for instance id {instance_id}")
+                return None
 
-        return instance
+            return instance | {"pr_comments": pr_comments, "repo_url": repo_url}
+
+        return instance | {"repo_url": repo_url}
 
 
-def _solve_instance(instance_id: str, instance_background: str, settings: Settings) -> None:
+def _solve_instance(
+    instance_id: str,
+    instance_background: str,
+    instance_repo_url: str,
+    pr_comments: Optional[str],
+    settings: Settings,
+) -> None:
     logger.info("Solving instance id: {}", instance_id)
-    target_repo_url = utils.find_github_repo_url(instance_background)
     instance_background = utils.remove_all_urls(instance_background)
-    if not target_repo_url:
-        logger.info(f"Instance id {instance_id} does not have a github repo url")
-        return
 
-    forked_repo_url = utils.fork_repo(target_repo_url, settings.github_pat)
+    forked_repo_url = utils.fork_repo(instance_repo_url, settings.github_pat)
     logger.info(f"Forked repo url: {forked_repo_url}")
     forked_repo_name = utils.extract_repo_name_from_url(forked_repo_url)
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -64,10 +76,11 @@ def _solve_instance(instance_id: str, instance_background: str, settings: Settin
             utils.copy_file_to_directory(modify_repo_absolute_path, repo_absolute_path)
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
             test_command = aider_solver.suggest_test_command(str(repo_absolute_path))
+            solver_command = utils.get_solver_command(instance_background, pr_comments)
             logs = aider_solver.launch_container_with_repo_mounted(
                 str(repo_absolute_path),
                 settings.foundation_model_name.value,
-                instance_background,
+                solver_command,
                 test_command,
             )
 
@@ -75,7 +88,7 @@ def _solve_instance(instance_id: str, instance_background: str, settings: Settin
             if not pushed:
                 logger.info(f"No new commits to push for instance id {instance_id}")
                 return logs
-            target_repo_name = utils.extract_repo_name_from_url(target_repo_url)
+            target_repo_name = utils.extract_repo_name_from_url(instance_repo_url)
             logger.info(
                 f"Creating pull request from source repo {forked_repo_name} "
                 f"to target repo {target_repo_name}"
@@ -114,7 +127,8 @@ def get_awarded_proposals(settings: Settings) -> list[dict]:
     one_day_ago = current_time - timedelta(days=1)
 
     awarded_proposals = [
-        p for p in all_proposals 
+        p
+        for p in all_proposals
         if p["status"] == settings.market_awarded_proposal_code
         and datetime.fromisoformat(p["creation_date"]) > one_day_ago
     ]
@@ -148,6 +162,8 @@ def solve_instances_handler() -> None:
             message = _solve_instance(
                 instance["id"],
                 instance["background"],
+                instance["repo_url"],
+                instance.get("pr_comments"),
                 SETTINGS,
             )
         except Exception as e:
