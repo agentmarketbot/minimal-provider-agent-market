@@ -37,12 +37,16 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[dic
         chat = response.json()
         if chat:
             logger.info(f"Instance id {instance_id} has chat messages. Looking for PR comments.")
-            pr_comments = utils.get_latest_pr_comments(repo_url, instance_id)
+            pr_url = utils.get_pr_url(chat[-1]["message"])
+            if not pr_url:
+                logger.info(f"No PR URL found for instance id {instance_id}")
+                return None
+            pr_comments = utils.get_last_pr_comments(pr_url, settings.github_pat)
             if not pr_comments:
                 logger.info(f"No PR comments found for instance id {instance_id}")
                 return None
 
-            return instance | {"pr_comments": pr_comments, "repo_url": repo_url}
+            return instance | {"pr_comments": pr_comments, "repo_url": repo_url, "pr_url": pr_url}
 
         return instance | {"repo_url": repo_url}
 
@@ -52,9 +56,13 @@ def _solve_instance(
     instance_background: str,
     instance_repo_url: str,
     pr_comments: Optional[str],
+    pr_url: Optional[str],
     settings: Settings,
 ) -> None:
     logger.info("Solving instance id: {}", instance_id)
+    target_repo_url = utils.find_github_repo_url(instance_background)
+    if pr_comments:
+        instance_background = utils.add_pr_comments_to_background(instance_background, pr_comments)
     instance_background = utils.remove_all_urls(instance_background)
 
     forked_repo_url = utils.fork_repo(instance_repo_url, settings.github_pat)
@@ -84,29 +92,36 @@ def _solve_instance(
                 test_command,
             )
 
+            if pr_url:
+                utils.add_aider_logs_as_pr_comments(pr_url, settings.github_pat, logs)
+
             pushed = utils.push_commits(str(repo_absolute_path), settings.github_pat)
             if not pushed:
                 logger.info(f"No new commits to push for instance id {instance_id}")
                 return logs
-            target_repo_name = utils.extract_repo_name_from_url(instance_repo_url)
-            logger.info(
-                f"Creating pull request from source repo {forked_repo_name} "
-                f"to target repo {target_repo_name}"
-            )
 
-            pr_title = utils.get_pr_title(instance_background)
-            pr_body = utils.get_pr_body(instance_background)
+            if not pr_comments:
+                target_repo_name = utils.extract_repo_name_from_url(target_repo_url)
+                logger.info(
+                    f"Creating pull request from source repo {forked_repo_name} "
+                    f"to target repo {target_repo_name}"
+                )
 
-            pr_url = utils.create_pull_request(
-                source_repo_name=forked_repo_name,
-                target_repo_name=target_repo_name,
-                source_repo_path=str(repo_absolute_path),
-                github_token=settings.github_pat,
-                pr_title=pr_title,
-                pr_body=pr_body,
-            )
+                pr_title = utils.get_pr_title(instance_background)
+                pr_body = utils.get_pr_body(instance_background)
 
-            return f"Solved instance {instance_id} with PR {pr_url}"
+                pr_url = utils.create_pull_request(
+                    source_repo_name=forked_repo_name,
+                    target_repo_name=target_repo_name,
+                    source_repo_path=str(repo_absolute_path),
+                    github_token=settings.github_pat,
+                    pr_title=pr_title,
+                    pr_body=pr_body,
+                )
+
+                return f"Solved instance {instance_id} with PR {pr_url}"
+            else:
+                return f"Added comments to PR"
 
         except Exception as e:
             logger.error(f"Error while processing repository: {e}")
@@ -164,8 +179,11 @@ def solve_instances_handler() -> None:
                 instance["background"],
                 instance["repo_url"],
                 instance.get("pr_comments"),
+                instance.get("pr_url"),
                 SETTINGS,
             )
+            if not message:
+                continue
         except Exception as e:
             logger.error(f"Error solving instance id {instance['id']}: {e}")
         else:

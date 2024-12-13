@@ -224,6 +224,11 @@ def create_and_push_branch(repo_path, branch_name, github_token):
         repo.heads[branch_name].checkout()
         logger.info(f"Checked out to branch '{branch_name}'.")
 
+        current_branch = repo.active_branch.name
+        logger.info(f"Pulling latest changes from origin/{current_branch}")
+
+        repo.remotes.origin.pull(current_branch)
+
         g = github.Github(github_token)
         logger.info("Authenticated with GitHub using the provided token.")
 
@@ -254,3 +259,116 @@ def create_and_push_branch(repo_path, branch_name, github_token):
 
     except Exception as e:
         logger.error(f"Error: {e}")
+
+
+def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
+    g = github.Github(github_token)
+
+    pr_path = pr_url.split("github.com/")[-1]
+    owner_repo, pr_number = pr_path.split("/pull/")
+    pr_number = int(pr_number)
+
+    repo = g.get_repo(owner_repo)
+    pr = repo.get_pull(pr_number)
+
+    latest_comment_time = None
+
+    issue_comments = list(pr.get_issue_comments())
+    review_comments = list(pr.get_review_comments())
+
+    if issue_comments:
+        latest_issue_comment_time = issue_comments[-1].created_at
+        if latest_comment_time is None or latest_issue_comment_time > latest_comment_time:
+            latest_comment_time = latest_issue_comment_time
+
+    if review_comments:
+        latest_review_comment_time = review_comments[-1].created_at
+        if latest_comment_time is None or latest_review_comment_time > latest_comment_time:
+            latest_comment_time = latest_review_comment_time
+
+    commits = list(pr.get_commits())
+    if commits:
+        latest_commit = commits[-1]
+        if latest_commit.commit.author.date > latest_comment_time:
+            return False
+
+    diff_content = pr.get_files()
+    diff_text = []
+    for file in diff_content:
+        diff_text.append(f"File: {file.filename}")
+        diff_text.append(f"Status: {file.status}")
+        diff_text.append(f"Changes: +{file.additions} -{file.deletions}")
+        diff_text.append(f"Patch:\n{file.patch if file.patch else 'No patch available'}\n")
+
+    comments = []
+
+    issue_comments = pr.get_issue_comments()
+    for comment in issue_comments:
+        comments.append(f"Comment by {comment.user.login} at {comment.created_at}:")
+        comments.append(comment.body)
+        comments.append("---")
+
+    review_comments = pr.get_review_comments()
+    for comment in review_comments:
+        comments.append(f"Review comment by {comment.user.login} at {comment.created_at}:")
+        comments.append(f"File: {comment.path}, Line: {comment.line}")
+        comments.append(comment.body)
+        comments.append("---")
+
+    result = "\n".join(
+        [
+            "DIFF",
+            "\n".join(diff_text),
+            "COMMENTS",
+            "\n".join(comments),
+        ]
+    )
+
+    return result
+
+
+def add_pr_comments_to_background(background: str, pr_info: str) -> str:
+    result = "\n".join(
+        [
+            "=== SYSTEM INSTRUCTIONS ===",
+            "You are a helpful AI assistant that implements code changes based on pull request feedback.",
+            "Your task is to analyze the issue description and specifically address the LAST comment in the pull request.",
+            "Focus only on implementing changes requested in the most recent comment.",
+            "",
+            "=== CONTEXT ===",
+            "ISSUE DESCRIPTION",
+            background,
+            "PULL REQUEST DETAILS",
+            pr_info,
+            "\n=== REQUIRED ACTIONS ===",
+            "1. Review the issue description to understand the context",
+            "2. Analyze the pull request diff and comments",
+            "3. Implement the necessary code changes addressing the feedback in the last comment",
+            "4. Ensure your changes maintain code quality and follow the project's standards",
+        ]
+    )
+    return result
+
+
+def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> None:
+    g = github.Github(github_token)
+
+    pr_path = pr_url.split("github.com/")[-1]
+    owner_repo, pr_number = pr_path.split("/pull/")
+    pr_number = int(pr_number)
+
+    repo = g.get_repo(owner_repo)
+    pr = repo.get_pull(pr_number)
+
+    comment = "## Aider:\n" "```\n" f"{logs}\n" "```"
+
+    pr.create_issue_comment(comment)
+    logger.info("Successfully added aider logs as PR comment")
+
+
+def get_pr_url(chat_text: str) -> str:
+    pr_url_pattern = r"https://github\.com/[^/]+/[^/]+/pull/\d+"
+    match = re.search(pr_url_pattern, chat_text)
+    if match:
+        return match.group(0)
+    return None
