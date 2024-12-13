@@ -271,30 +271,24 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
     repo = g.get_repo(owner_repo)
     pr = repo.get_pull(pr_number)
 
-    latest_comment_time = None
-
     issue_comments = list(pr.get_issue_comments())
     review_comments = list(pr.get_review_comments())
 
-    if issue_comments:
-        latest_issue_comment_time = issue_comments[-1].created_at
-        if latest_comment_time is None or latest_issue_comment_time > latest_comment_time:
-            latest_comment_time = latest_issue_comment_time
+    last_issue_comment = issue_comments[-1] if issue_comments else None
+    last_review_comment = review_comments[-1] if review_comments else None
 
+    last_comment = None
+    if last_issue_comment and last_review_comment:
+        last_comment = last_issue_comment if last_issue_comment.created_at > last_review_comment.created_at else last_review_comment
+    elif last_issue_comment:
+        last_comment = last_issue_comment
+    elif last_review_comment:
+        last_comment = last_review_comment
+    else:
+        return False  # No comments found
 
-    if review_comments:
-        latest_review_comment_time = review_comments[-1].created_at
-        if latest_comment_time is None or latest_review_comment_time > latest_comment_time:
-            latest_comment_time = latest_review_comment_time
-
-    if not latest_comment_time:
+    if last_comment.user.login == g.get_user().login:
         return False
-
-    commits = list(pr.get_commits())
-    if commits:
-        latest_commit = commits[-1]
-        if latest_commit.commit.author.date > latest_comment_time:
-            return False
 
     diff_content = pr.get_files()
     diff_text = []
@@ -367,7 +361,6 @@ def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> 
     comment = f"## Aider:\n{logs}\n"
 
     pr.create_issue_comment(comment)
-    time.sleep(1.5)
     logger.info("Successfully added aider logs as PR comment")
 
 
