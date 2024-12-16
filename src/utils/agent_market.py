@@ -59,9 +59,3 @@ def remove_all_urls(text: str) -> str:
     text = text.replace("Repository URL:", "")
     text = text.replace("Issue URL:", "")
     return re.sub(r"https?:\/\/[^\s]+", "", text)
-
-
-def get_solver_command(instance_background: str, pr_comments: Optional[str]) -> str:
-    if not pr_comments:
-        return instance_background
-    return instance_background

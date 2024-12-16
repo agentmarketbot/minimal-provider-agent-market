@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from src.enums import ModelName
+from src.enums import AgentType, ModelName
 
 load_dotenv()
 
@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     )
 
     max_bid: float = Field(0.01, gt=0, description="The maximum bid for a proposal.")
+    agent_type: AgentType = Field(..., description="The type of agent to use.")
 
     class Config:
         case_sensitive = False
