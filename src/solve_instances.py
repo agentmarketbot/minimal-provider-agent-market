@@ -62,7 +62,6 @@ def _solve_instance(
     settings: Settings,
 ) -> None:
     logger.info("Solving instance id: {}", instance_id)
-    target_repo_url = utils.find_github_repo_url(instance_background)
     if pr_comments:
         solver_command = utils.add_pr_comments_to_background(instance_background, pr_comments)
     else:
@@ -109,7 +108,7 @@ def _solve_instance(
         if pushed:
             if pr_url:
                 return "Added comments to PR"
-            target_repo_name = utils.extract_repo_name_from_url(target_repo_url)
+            target_repo_name = utils.extract_repo_name_from_url(instance_repo_url)
             logger.info(
                 f"Creating pull request from source repo {forked_repo_name} "
                 f"to target repo {target_repo_name}"
