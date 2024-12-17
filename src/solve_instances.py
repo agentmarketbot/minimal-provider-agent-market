@@ -108,7 +108,7 @@ def _solve_instance(
                 )
 
                 pr_title = utils.get_pr_title(instance_background)
-                pr_body = utils.get_pr_body(instance_background)
+                pr_body = utils.get_pr_body(instance_background, logs)
 
                 pr_url = utils.create_pull_request(
                     source_repo_name=forked_repo_name,
