@@ -376,7 +376,7 @@ def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> 
     comment = f"## Aider:\n{logs}\n"
 
     pr.create_issue_comment(comment)
-    logger.info("Successfully added aider logs as PR comment")
+    logger.info("Successfully added logs as PR comment")
 
 
 def get_pr_url(chat_text: str) -> str:
