@@ -44,12 +44,12 @@ def push_commits(repo_path: str, github_token: str) -> bool:
             logger.error("The HEAD is detached. Cannot push commits.")
             return False
 
-        if "main" not in repo.heads:
-            main_branch = "master"
-        else:
-            main_branch = "main"
+        current_branch = repo.active_branch.name
 
-        if repo.head.commit != repo.remotes.origin.refs[main_branch].commit:
+        repo.remotes.origin.fetch()
+
+        remote_branch = f"origin/{current_branch}"
+        if remote_branch in repo.refs and repo.head.commit != repo.refs[remote_branch].commit:
             logger.info("There are commits ahead of the remote branch.")
         else:
             logger.info("No new commits to push.")
@@ -62,12 +62,11 @@ def push_commits(repo_path: str, github_token: str) -> bool:
             )
             repo.remotes.origin.set_url(remote_url)
 
-        current_branch = repo.active_branch.name
-        repo.remotes.origin.push(refspec=f"{current_branch}:{current_branch}", set_upstream=True)
+        repo.remotes.origin.push()
         logger.info("Changes pushed to remote.")
         return True
     except Exception as e:
-        logger.error("Error pushing changes: {}", e)
+        logger.error(f"Error pushing changes: {e}")
         raise
 
 
