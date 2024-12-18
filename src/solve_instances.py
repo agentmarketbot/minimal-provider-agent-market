@@ -114,8 +114,8 @@ def _solve_instance(
                 f"to target repo {target_repo_name}"
             )
 
-            pr_title = utils.get_pr_title(solver_command)
-            pr_body = utils.get_pr_body(solver_command)
+            pr_title = utils.get_pr_title(instance_background)
+            pr_body = utils.get_pr_body(instance_background, logs)
 
             pr_url = utils.create_pull_request(
                 source_repo_name=forked_repo_name,
