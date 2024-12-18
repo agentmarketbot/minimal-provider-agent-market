@@ -28,10 +28,10 @@ def get_container_kwargs(
     model_name: ModelName,
 ) -> str:
     solver_command += (
-        "\n\nFOLLOW THIS INSTRUCTIONS:\n\n"
-        "Make sure you commit to the repository the changes proposed. "
-        "Never push the changes. "
-        "Always stay in the same repository branch."
+        "\n\n=== SYSTEM REQUIREMENTS ===\n"
+        "MAKE SURE YOU COMMIT TO THE REPOSITORY THE CHANGES PROPOSED. "
+        "NEVER PUSH THE CHANGES. "
+        "ALWAYS STAY IN THE SAME REPOSITORY BRANCH."
     )
     entrypoint = ["python", "-m", "openhands.core.main", "-t", solver_command, "--no-auto-continue"]
     env_vars = {
