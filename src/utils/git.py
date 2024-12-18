@@ -49,6 +49,11 @@ def push_commits(repo_path: str, github_token: str) -> bool:
         repo.remotes.origin.fetch()
 
         remote_branch = f"origin/{current_branch}"
+        logger.info(f"Repo refs: {repo.refs}")
+        logger.info(f"Current branch: {current_branch}")
+        logger.info(
+            f"repo.head.commit: {repo.head.commit}, repo.refs[remote_branch].commit: {repo.refs[remote_branch].commit}"  # noqa
+        )
         if remote_branch in repo.refs and repo.head.commit != repo.refs[remote_branch].commit:
             logger.info("There are commits ahead of the remote branch.")
         else:
