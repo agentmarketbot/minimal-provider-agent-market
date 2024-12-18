@@ -6,6 +6,7 @@ from .agent_market import (
 from .file_utils import change_directory_ownership_recursive, copy_file_to_directory
 from .git import (
     add_aider_logs_as_pr_comments,
+    add_and_commit,
     add_pr_comments_to_background,
     clone_repository,
     create_and_push_branch,
@@ -37,4 +38,5 @@ __all__ = [
     "add_pr_comments_to_background",
     "get_pr_url",
     "add_aider_logs_as_pr_comments",
+    "add_and_commit",
 ]

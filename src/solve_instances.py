@@ -103,6 +103,7 @@ def _solve_instance(
         if pr_url:
             utils.add_aider_logs_as_pr_comments(pr_url, settings.github_pat, logs)
 
+        utils.add_and_commit(str(repo_absolute_path))
         pushed = utils.push_commits(str(repo_absolute_path), settings.github_pat)
         if pushed:
             if pr_url:

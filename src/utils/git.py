@@ -36,6 +36,26 @@ def fork_repo(github_url: str, github_token: str) -> str:
     return forked_repo.clone_url
 
 
+def add_and_commit(repo_path: str, commit_message="agent bot commit") -> None:
+    try:
+        repo = git.Repo(repo_path)
+        logger.info(f"Repository initialized at {repo_path}")
+
+        if repo.is_dirty(untracked_files=True):
+            logger.info(f"Repository is dirty. Staging all changes.")
+            repo.git.add(A=True)
+            logger.info("All changes staged successfully.")
+
+            repo.index.commit(commit_message)
+            logger.info(f"Changes committed with message: '{commit_message}'")
+        else:
+            logger.info("No unstaged changes detected. Nothing to commit.")
+
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        raise
+
+
 def push_commits(repo_path: str, github_token: str) -> bool:
     try:
         repo = git.Repo(repo_path)
