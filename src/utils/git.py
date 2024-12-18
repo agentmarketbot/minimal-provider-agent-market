@@ -209,25 +209,37 @@ def set_git_config(username: str, email: str, repo_dir: str):
 def create_and_push_branch(repo_path, branch_name, github_token):
     try:
         repo = git.Repo(repo_path)
-        logger.info(f"Repository initialized at {repo_path}.")
+        repo.remotes.origin.fetch()
+        logger.info(f"Repository initialized and fetched at {repo_path}")
 
         if repo.bare:
             logger.error("The repository is bare. Cannot perform operations.")
             raise Exception("The repository is bare. Cannot perform operations.")
 
-        if branch_name in repo.heads:
+        local_branches = [head.name for head in repo.heads]
+        logger.info(f"Local heads are: {local_branches}")
+        remote_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs if "heads"]
+        logger.info(f"Remote branches are: {remote_branches}")
+
+        branch_in_remote = branch_name in remote_branches
+
+        if branch_name in local_branches:
             logger.info(f"Branch '{branch_name}' already exists locally.")
+        elif branch_in_remote:
+            logger.info(f"Branch '{branch_name}' exists remotely. Checking it out locally.")
+            repo.git.checkout(f"origin/{branch_name}", b=branch_name)
         else:
+            logger.info(f"Branch '{branch_name}' does not exist. Creating locally.")
             repo.create_head(branch_name)
-            logger.info(f"Branch '{branch_name}' created locally.")
 
         repo.heads[branch_name].checkout()
         logger.info(f"Checked out to branch '{branch_name}'.")
 
-        current_branch = repo.active_branch.name
-        logger.info(f"Pulling latest changes from origin/{current_branch}")
-
-        repo.remotes.origin.pull(current_branch)
+        if branch_in_remote:
+            logger.info(f"Pulling latest changes from origin/{branch_name}")
+            repo.remotes.origin.pull(branch_name)
+        else:
+            logger.info(f"No remote branch '{branch_name}' to pull from.")
 
         g = github.Github(github_token)
         logger.info("Authenticated with GitHub using the provided token.")
@@ -279,7 +291,11 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
 
     last_comment = None
     if last_issue_comment and last_review_comment:
-        last_comment = last_issue_comment if last_issue_comment.created_at > last_review_comment.created_at else last_review_comment
+        last_comment = (
+            last_issue_comment
+            if last_issue_comment.created_at > last_review_comment.created_at
+            else last_review_comment
+        )
     elif last_issue_comment:
         last_comment = last_issue_comment
     elif last_review_comment:
@@ -329,10 +345,10 @@ def add_pr_comments_to_background(background: str, pr_info: str) -> str:
     result = "\n".join(
         [
             "=== SYSTEM INSTRUCTIONS ===",
-            "You are a helpful AI assistant that implements code changes based on pull request feedback.",
-            "Your task is to analyze the issue description and specifically address the LAST comment in the pull request.",
-            "Focus only on implementing changes requested in the most recent comment.",
-            "",
+            "You are a helpful AI assistant that implements code changes based on pull request "
+            "feedback. Your task is to analyze the issue description and specifically address the "
+            "LAST comment in the pull request. Focus only on implementing changes requested in the "
+            "most recent comment.",
             "=== CONTEXT ===",
             "ISSUE DESCRIPTION",
             background,
