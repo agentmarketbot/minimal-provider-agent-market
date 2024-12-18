@@ -1,4 +1,5 @@
 import re
+import time
 
 import openai
 from docker import from_env as docker_from_env
@@ -47,6 +48,7 @@ def launch_container_with_repo_mounted(
     **kwargs,
 ) -> str:
     docker_client = docker_from_env()
+    logger.info("Launching container")
     container = docker_client.containers.run(
         **kwargs,
         tty=True,
@@ -56,22 +58,24 @@ def launch_container_with_repo_mounted(
     logger.info("Container launched")
 
     try:
-        result = container.wait(timeout=timeout)
+        time.sleep(timeout)
+        logger.info("Timeout reached. Examining logs.")
+        raw_logs = container.logs(stream=False).decode("utf-8")
+        logger.info(f"Raw logs: {raw_logs}")
+        logs = _clean_logs(raw_logs)
+        logger.info(f"Clean logs: {logs}")
 
-        logs = _clean_logs(container.logs(stream=False).decode("utf-8"))
-
-        logger.info(f"Logs: {logs}")
-
-        exit_status = result.get("StatusCode", -1)
-        logger.info(f"Container finished with exit code: {exit_status}")
-
-        container.remove()
-        logger.info("Container removed")
+        logger.info("Removing all containers")
+        for container in docker_client.containers.list(all=True):
+            container.stop()
+            container.remove()
+        logger.info("Containers removed")
 
     except Exception as e:
         logger.error(f"Failed to wait for container: {e}")
-        container.stop()
-        container.remove()
+        for container in docker_client.containers.list(all=True):
+            container.stop()
+            container.remove()
         raise
 
     return logs
