@@ -99,8 +99,7 @@ def _solve_instance(
                 solver_command,
                 test_command,
             )
-
-        logs = launch_container_with_repo_mounted(container_kwargs)
+        logs = launch_container_with_repo_mounted(**container_kwargs)
         if pr_url:
             utils.add_aider_logs_as_pr_comments(pr_url, settings.github_pat, logs)
 
