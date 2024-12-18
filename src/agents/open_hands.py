@@ -29,7 +29,8 @@ def get_container_kwargs(
 ) -> str:
     solver_command += (
         "\n\nFOLLOW THIS INSTRUCTIONS:\n\n"
-        "Only commit changes to the repository but never push the changes. "
+        "Make sure you commit to the repository the changes proposed. "
+        "Never push the changes. "
         "Always stay in the same repository branch."
     )
     entrypoint = ["python", "-m", "openhands.core.main", "-t", solver_command, "--no-auto-continue"]
