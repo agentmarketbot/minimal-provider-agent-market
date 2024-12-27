@@ -26,7 +26,7 @@ class InstanceToSolve:
     started_solving: bool = False
 
 
-def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSolve:
+def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[InstanceToSolve]:
     headers = {
         "x-api-key": settings.market_api_key,
     }
@@ -221,7 +221,7 @@ def solve_instances_handler() -> None:
     for p in awarded_proposals:
         instance_to_solve = _get_instance_to_solve(p["instance_id"], SETTINGS)
         try:
-            if not instance_to_solve.repo_url:
+            if not instance_to_solve or not instance_to_solve.repo_url:
                 continue
 
             pr_interaction = bool(instance_to_solve.pr_url) and bool(instance_to_solve.pr_comments)
