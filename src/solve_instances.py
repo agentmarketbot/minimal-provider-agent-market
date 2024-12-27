@@ -52,7 +52,9 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSo
 
         logger.info(f"Looking for PR comments in chat with instance id {instance_id}")
         user_messages = (
-            utils.format_messages(chat) if any(m["sender"] == "requester" for m in chat) else None
+            utils.format_messages(chat)
+            if sorted(chat, key=lambda m: m["timestamp"])[-1]["sender"] == "requester"
+            else None
         )
         formatted_messages = utils.format_messages(chat)
         pr_url = utils.get_pr_url(formatted_messages)
