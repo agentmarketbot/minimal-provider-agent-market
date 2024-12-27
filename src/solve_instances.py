@@ -244,7 +244,7 @@ def solve_instances_handler() -> None:
         else:
             try:
                 _send_message(
-                    instance_to_solve["id"],
+                    instance_to_solve.instance["id"],
                     message,
                     SETTINGS,
                 )
