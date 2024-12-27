@@ -240,7 +240,7 @@ def solve_instances_handler() -> None:
             if not message:
                 continue
         except Exception as e:
-            logger.error(f"Error solving instance id {instance_to_solve['id']}: {e}")
+            logger.error(f"Error solving instance id {instance_to_solve.instance['id']}: {e}")
         else:
             try:
                 _send_message(
@@ -250,5 +250,5 @@ def solve_instances_handler() -> None:
                 )
             except Exception as e:
                 logger.error(
-                    f"Error sending message for instance id {instance_to_solve['id']}: {e}"
+                    f"Error sending message for instance id {instance_to_solve.instance['id']}: {e}"
                 )
