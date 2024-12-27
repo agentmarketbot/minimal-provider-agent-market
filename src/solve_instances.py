@@ -22,7 +22,8 @@ class InstanceToSolve:
     repo_url: Optional[str] = None
     pr_url: Optional[str] = None
     pr_comments: Optional[str] = None
-    user_messages: Optional[str] = None
+    messages_with_requester: Optional[str] = None
+    started_solving: bool = False
 
 
 def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSolve:
@@ -50,12 +51,18 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSo
         if not chat:
             return InstanceToSolve(instance=instance, repo_url=repo_url)
 
-        logger.info(f"Looking for PR comments in chat with instance id {instance_id}")
-        user_messages = (
+        messages_from_provider_present = any(message["sender"] == "provider" for message in chat)
+        logger.info(
+            f"Instance id {instance_id} messages from provider: {messages_from_provider_present}"
+        )
+
+        messages_with_requester = (
             utils.format_messages(chat)
             if sorted(chat, key=lambda m: m["timestamp"])[-1]["sender"] == "requester"
             else None
         )
+        logger.info(f"Messages with requester: {messages_with_requester}")
+
         formatted_messages = utils.format_messages(chat)
         pr_url = utils.get_pr_url(formatted_messages)
         logger.info(
@@ -66,9 +73,13 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSo
 
         if not pr_url:
             return InstanceToSolve(
-                instance=instance, repo_url=repo_url, user_messages=user_messages
+                instance=instance,
+                repo_url=repo_url,
+                messages_with_requester=messages_with_requester,
+                started_solving=messages_from_provider_present,
             )
 
+        logger.info(f"Looking for PR comments in chat with instance id {instance_id}")
         pr_comments = utils.get_last_pr_comments(pr_url, settings.github_pat)
         pr_comments = pr_comments if pr_comments else None
         logger.info(
@@ -81,7 +92,8 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSo
             repo_url=repo_url,
             pr_url=pr_url,
             pr_comments=pr_comments,
-            user_messages=user_messages,
+            messages_with_requester=messages_with_requester,
+            started_solving=messages_from_provider_present,
         )
 
 
@@ -93,7 +105,7 @@ def _solve_instance(
     solver_command = utils.build_solver_command(
         instance_to_solve.instance["background"],
         instance_to_solve.pr_comments,
-        instance_to_solve.user_messages,
+        instance_to_solve.messages_with_requester,
     )
     solver_command = utils.remove_all_urls(solver_command)
 
@@ -208,13 +220,16 @@ def solve_instances_handler() -> None:
 
     for p in awarded_proposals:
         instance_to_solve = _get_instance_to_solve(p["instance_id"], SETTINGS)
-        logger.info(f"Instance to solve: {instance_to_solve}")
         try:
             if not instance_to_solve.repo_url:
                 continue
-            if not (
-                (instance_to_solve.pr_url and instance_to_solve.pr_comments)
-                or instance_to_solve.user_messages
+
+            pr_interaction = bool(instance_to_solve.pr_url) and bool(instance_to_solve.pr_comments)
+            user_interaction = bool(instance_to_solve.messages_with_requester)
+            if (
+                instance_to_solve.started_solving
+                and (not pr_interaction)
+                and (not user_interaction)
             ):
                 continue
 
