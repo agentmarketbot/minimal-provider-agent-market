@@ -1,4 +1,5 @@
 from .agent_market import (
+    format_messages,
     get_pr_body,
     get_pr_title,
     remove_all_urls,
@@ -7,7 +8,7 @@ from .file_utils import change_directory_ownership_recursive, copy_file_to_direc
 from .git import (
     add_aider_logs_as_pr_comments,
     add_and_commit,
-    add_pr_comments_to_background,
+    build_solver_command,
     clone_repository,
     create_and_push_branch,
     create_pull_request,
@@ -35,8 +36,9 @@ __all__ = [
     "copy_file_to_directory",
     "change_directory_ownership_recursive",
     "get_last_pr_comments",
-    "add_pr_comments_to_background",
+    "build_solver_command",
     "get_pr_url",
     "add_aider_logs_as_pr_comments",
     "add_and_commit",
+    "format_messages",
 ]

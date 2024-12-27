@@ -69,3 +69,7 @@ def remove_all_urls(text: str) -> str:
     text = text.replace("Repository URL:", "")
     text = text.replace("Issue URL:", "")
     return re.sub(r"https?:\/\/[^\s]+", "", text)
+
+
+def format_messages(messages: list[dict]) -> str:
+    return "\n".join([m["message"] for m in messages])

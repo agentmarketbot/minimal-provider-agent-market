@@ -1,5 +1,6 @@
 import os
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -15,7 +16,16 @@ from src.enums import AgentType
 TIMEOUT = httpx.Timeout(10.0)
 
 
-def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[dict]:
+@dataclass
+class InstanceToSolve:
+    instance: dict
+    repo_url: Optional[str] = None
+    pr_url: Optional[str] = None
+    pr_comments: Optional[str] = None
+    user_messages: Optional[str] = None
+
+
+def _get_instance_to_solve(instance_id: str, settings: Settings) -> InstanceToSolve:
     headers = {
         "x-api-key": settings.market_api_key,
     }
@@ -30,45 +40,62 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[dic
     repo_url = utils.find_github_repo_url(instance["background"])
     if not repo_url:
         logger.info(f"Instance id {instance_id} does not have a github repo url")
-        return None
+        return InstanceToSolve(instance=instance)
 
     with httpx.Client(timeout=TIMEOUT) as client:
         chat_endpoint = f"{settings.market_url}/v1/chat/{instance_id}"
         response = client.get(chat_endpoint, headers=headers)
 
         chat = response.json()
-        if chat:
-            logger.info(f"Instance id {instance_id} has chat messages. Looking for PR comments.")
-            pr_url = utils.get_pr_url("\n".join([m["message"] for m in chat]))
-            if not pr_url:
-                logger.info(f"No PR URL found for instance id {instance_id}")
-                return None
-            pr_comments = utils.get_last_pr_comments(pr_url, settings.github_pat)
-            if not pr_comments:
-                logger.info(f"No PR comments found for instance id {instance_id}")
-                return None
+        if not chat:
+            return InstanceToSolve(instance=instance, repo_url=repo_url)
 
-            return instance | {"pr_comments": pr_comments, "repo_url": repo_url, "pr_url": pr_url}
+        logger.info(f"Looking for PR comments in chat with instance id {instance_id}")
+        user_messages = (
+            utils.format_messages(chat) if any(m["sender"] == "requester" for m in chat) else None
+        )
+        formatted_messages = utils.format_messages(chat)
+        pr_url = utils.get_pr_url(formatted_messages)
+        logger.info(
+            "PR URL {} found {} for instance id {}. Looking for PR comments".format(
+                "NOT" if not pr_url else "", pr_url if pr_url else "", instance_id
+            )
+        )
 
-        return instance | {"repo_url": repo_url}
+        if not pr_url:
+            return InstanceToSolve(
+                instance=instance, repo_url=repo_url, user_messages=user_messages
+            )
+
+        pr_comments = utils.get_last_pr_comments(pr_url, settings.github_pat)
+        pr_comments = pr_comments if pr_comments else None
+        logger.info(
+            "PR comments {} found {} for instance id {}".format(
+                "NOT" if not pr_comments else "", pr_comments if pr_comments else "", instance_id
+            )
+        )
+        return InstanceToSolve(
+            instance=instance,
+            repo_url=repo_url,
+            pr_url=pr_url,
+            pr_comments=pr_comments,
+            user_messages=user_messages,
+        )
 
 
 def _solve_instance(
-    instance_id: str,
-    instance_background: str,
-    instance_repo_url: str,
-    pr_comments: Optional[str],
-    pr_url: Optional[str],
+    instance_to_solve: InstanceToSolve,
     settings: Settings,
 ) -> None:
-    logger.info("Solving instance id: {}", instance_id)
-    if pr_comments:
-        solver_command = utils.add_pr_comments_to_background(instance_background, pr_comments)
-    else:
-        solver_command = instance_background
+    logger.info("Solving instance id: {}", instance_to_solve.instance["id"])
+    solver_command = utils.build_solver_command(
+        instance_to_solve.instance["background"],
+        instance_to_solve.pr_comments,
+        instance_to_solve.user_messages,
+    )
     solver_command = utils.remove_all_urls(solver_command)
 
-    forked_repo_url = utils.fork_repo(instance_repo_url, settings.github_pat)
+    forked_repo_url = utils.fork_repo(instance_to_solve.repo_url, settings.github_pat)
     logger.info(f"Forked repo url: {forked_repo_url}")
     forked_repo_name = utils.extract_repo_name_from_url(forked_repo_url)
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -76,7 +103,9 @@ def _solve_instance(
         logger.info(f"Cloning repository {forked_repo_url} to {repo_absolute_path}")
 
         utils.clone_repository(forked_repo_url, str(repo_absolute_path))
-        utils.create_and_push_branch(repo_absolute_path, instance_id, settings.github_pat)
+        utils.create_and_push_branch(
+            repo_absolute_path, instance_to_solve.instance["id"], settings.github_pat
+        )
         utils.set_git_config(settings.github_username, settings.github_email, repo_absolute_path)
         if settings.agent_type == AgentType.open_hands:
             container_kwargs = agents.open_hands_get_container_kwargs(
@@ -92,7 +121,9 @@ def _solve_instance(
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
 
             test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
-            solver_command = utils.aider_get_solver_command(solver_command, pr_comments)
+            solver_command = utils.aider_get_solver_command(
+                solver_command, instance_to_solve.pr_comments
+            )
             container_kwargs = agents.aider_get_container_kwargs(
                 str(repo_absolute_path),
                 settings.foundation_model_name.value,
@@ -100,22 +131,22 @@ def _solve_instance(
                 test_command,
             )
         logs = launch_container_with_repo_mounted(**container_kwargs)
-        if pr_url:
-            utils.add_aider_logs_as_pr_comments(pr_url, settings.github_pat, logs)
+        if instance_to_solve.pr_url:
+            utils.add_aider_logs_as_pr_comments(instance_to_solve.pr_url, settings.github_pat, logs)
 
         utils.add_and_commit(str(repo_absolute_path))
         pushed = utils.push_commits(str(repo_absolute_path), settings.github_pat)
         if pushed:
-            if pr_url:
+            if instance_to_solve.pr_url:
                 return "Added comments to PR"
-            target_repo_name = utils.extract_repo_name_from_url(instance_repo_url)
+            target_repo_name = utils.extract_repo_name_from_url(instance_to_solve.repo_url)
             logger.info(
                 f"Creating pull request from source repo {forked_repo_name} "
                 f"to target repo {target_repo_name}"
             )
 
-            pr_title = utils.get_pr_title(instance_background)
-            pr_body = utils.get_pr_body(instance_background, logs)
+            pr_title = utils.get_pr_title(instance_to_solve.instance["background"])
+            pr_body = utils.get_pr_body(instance_to_solve.instance["background"], logs)
 
             pr_url = utils.create_pull_request(
                 source_repo_name=forked_repo_name,
@@ -126,9 +157,11 @@ def _solve_instance(
                 pr_body=pr_body,
             )
 
-            return f"Solved instance {instance_id} with PR {pr_url}"
+            return f"Solved instance {instance_to_solve.instance['id']} with PR {pr_url}"
         else:
-            logger.info(f"No new commits to push for instance id {instance_id}")
+            logger.info(
+                f"No new commits to push for instance id {instance_to_solve.instance['id']}"
+            )
             return logs
 
 
@@ -172,30 +205,32 @@ def solve_instances_handler() -> None:
     logger.info(f"Found {len(awarded_proposals)} awarded proposals")
 
     for p in awarded_proposals:
-        instance = _get_instance_to_solve(p["instance_id"], SETTINGS)
-        if not instance:
-            continue
-
-        logger.info("Solving instance id: {}", instance["id"])
+        instance_to_solve = _get_instance_to_solve(p["instance_id"], SETTINGS)
         try:
+            if not instance_to_solve.repo_url:
+                continue
+            if not (
+                (instance_to_solve.pr_url and instance_to_solve.pr_comments)
+                or instance_to_solve.user_messages
+            ):
+                continue
+
             message = _solve_instance(
-                instance["id"],
-                instance["background"],
-                instance["repo_url"],
-                instance.get("pr_comments"),
-                instance.get("pr_url"),
+                instance_to_solve,
                 SETTINGS,
             )
             if not message:
                 continue
         except Exception as e:
-            logger.error(f"Error solving instance id {instance['id']}: {e}")
+            logger.error(f"Error solving instance id {instance_to_solve['id']}: {e}")
         else:
             try:
                 _send_message(
-                    instance["id"],
+                    instance_to_solve["id"],
                     message,
                     SETTINGS,
                 )
             except Exception as e:
-                logger.error(f"Error sending message for instance id {instance['id']}: {e}")
+                logger.error(
+                    f"Error sending message for instance id {instance_to_solve['id']}: {e}"
+                )
