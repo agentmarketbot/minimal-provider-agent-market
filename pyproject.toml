@@ -9,6 +9,7 @@ packages = [{include = "minimal_provider_agent_market"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
+# Base dependencies used by all agents
 docker = "7.1.0"
 gitpython = "3.1.43"
 httpx = "0.27.2"
@@ -19,8 +20,18 @@ pre-commit = "4.0.1"
 pygithub = "2.5.0"
 python-dotenv = "1.0.1"
 ruff = "0.8.0"
-openhands-ai = "^0.17.0"
 
+[tool.poetry.group.aider]
+optional = true
+
+[tool.poetry.group.aider.dependencies]
+aider-chat = "^0.12.0"
+
+[tool.poetry.group.open-hands]
+optional = true
+
+[tool.poetry.group.open-hands.dependencies]
+openhands-ai = "^0.17.0"
 
 [build-system]
 requires = ["poetry-core"]
