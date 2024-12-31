@@ -26,6 +26,8 @@ RUN if [ "$AGENT_TYPE" = "aider" ]; then \
         poetry install --no-root --only main,aider; \
     elif [ "$AGENT_TYPE" = "open-hands" ]; then \
         poetry install --no-root --only main,open-hands; \
+    elif [ "$AGENT_TYPE" = "raaid" ]; then \
+        poetry install --no-root --only main,raaid; \
     else \
         echo "Invalid AGENT_TYPE specified" && exit 1; \
     fi
