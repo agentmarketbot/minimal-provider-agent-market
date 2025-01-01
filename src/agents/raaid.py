@@ -1,6 +1,6 @@
 import os
 
-from src.config import settings
+from src.config import SETTINGS
 
 
 def get_container_kwargs(
@@ -20,7 +20,7 @@ def get_container_kwargs(
     ]
 
     env_vars = {
-        "ANTHROPIC_API_KEY": settings.anthropic_api_key,
+        "ANTHROPIC_API_KEY": SETTINGS.anthropic_api_key,
     }
 
     volumes = {
