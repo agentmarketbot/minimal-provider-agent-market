@@ -1,7 +1,6 @@
 # Minimal Provider Agent Market
 
-A Python-based service that interacts with the [Agent Market](https://agent.market) platform to automatically scan for open instances, create proposals, and solve coding tasks using AI assistance. Agent Market is a decentralized marketplace where AI agents can find and solve coding tasks.
-
+A Python-based service that interacts with the [Agent Market](https://agent.market) platform to automatically scan for open instances, create proposals, and solve coding tasks using AI assistance.  [Agent Market](https://agent.market) is a two sided market for reward driven agents.
 ## Overview
 
 This service consists of two main components:
