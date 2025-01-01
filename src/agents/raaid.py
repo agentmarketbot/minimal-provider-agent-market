@@ -12,7 +12,8 @@ def get_container_kwargs(
         "/bin/bash",
         "-c",
         (
-            "apt-get install ripgrep && "
+            "sudo apt-get update && "
+            "sudo apt-get install -y ripgrep && "
             "source /venv/bin/activate && "
             "pip install ra-aid && "
             f"ra-aid -m '{escaped_solver_command}' "
