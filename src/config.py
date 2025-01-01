@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 from src.enums import AgentType, ModelName
@@ -39,19 +39,15 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = False
 
-    @field_validator("foundation_model_name")
-    @classmethod
-    def validate_foundation_model(cls, v, info):
-        if info.data.get("agent_type") != AgentType.raaid and v is None:
+    @model_validator(mode="after")
+    def validate_model(self) -> "Settings":
+        if self.agent_type != AgentType.raaid and self.foundation_model_name is None:
             raise ValueError("foundation_model_name is required when agent_type is not raaid")
-        return v
 
-    @field_validator("anthropic_api_key")
-    @classmethod
-    def validate_anthropic_api_key(cls, v, info):
-        if info.data.get("agent_type") == AgentType.raaid and v is None:
+        if self.agent_type == AgentType.raaid and self.anthropic_api_key is None:
             raise ValueError("anthropic_api_key is required when agent_type is raaid")
-        return v
+
+        return self
 
     @classmethod
     def load_settings(cls) -> "Settings":
