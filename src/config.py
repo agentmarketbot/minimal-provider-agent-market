@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.enums import AgentType, ModelName
@@ -10,7 +10,9 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    foundation_model_name: ModelName = Field(..., description="The name of the model to use.")
+    foundation_model_name: ModelName | None = Field(
+        None, description="The name of the model to use."
+    )
     openai_api_key: str = Field(..., description="The API key for OpenAI.")
     github_pat: str = Field(..., description="The personal access token for GitHub.")
     github_username: str = Field(..., description="The GitHub username.")
@@ -32,8 +34,24 @@ class Settings(BaseSettings):
     max_bid: float = Field(0.01, gt=0, description="The maximum bid for a proposal.")
     agent_type: AgentType = Field(..., description="The type of agent to use.")
 
+    anthropic_api_key: str | None = Field(None, description="The API key for Anthropic.")
+
     class Config:
         case_sensitive = False
+
+    @field_validator("foundation_model_name")
+    @classmethod
+    def validate_foundation_model(cls, v, info):
+        if info.data.get("agent_type") != AgentType.raaid and v is None:
+            raise ValueError("foundation_model_name is required when agent_type is not raaid")
+        return v
+
+    @field_validator("anthropic_api_key")
+    @classmethod
+    def validate_anthropic_api_key(cls, v, info):
+        if info.data.get("agent_type") == AgentType.raaid and v is None:
+            raise ValueError("anthropic_api_key is required when agent_type is raaid")
+        return v
 
     @classmethod
     def load_settings(cls) -> "Settings":

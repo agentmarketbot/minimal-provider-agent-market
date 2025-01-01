@@ -121,6 +121,7 @@ def _solve_instance(
             repo_absolute_path, instance_to_solve.instance["id"], settings.github_pat
         )
         utils.set_git_config(settings.github_username, settings.github_email, repo_absolute_path)
+
         if settings.agent_type == AgentType.open_hands:
             container_kwargs = agents.open_hands_get_container_kwargs(
                 str(repo_absolute_path),
@@ -144,6 +145,13 @@ def _solve_instance(
                 solver_command,
                 test_command,
             )
+        elif settings.agent_type == AgentType.raaid:
+            utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
+            container_kwargs = agents.raaid_get_container_kwargs(
+                str(repo_absolute_path),
+                solver_command,
+            )
+
         logs = launch_container_with_repo_mounted(**container_kwargs)
         if instance_to_solve.pr_url:
             utils.add_aider_logs_as_pr_comments(instance_to_solve.pr_url, settings.github_pat, logs)
