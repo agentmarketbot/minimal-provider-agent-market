@@ -11,13 +11,7 @@ def get_container_kwargs(
     entrypoint = [
         "/bin/bash",
         "-c",
-        (
-            "apt-get update && "
-            "apt-get install -y ripgrep && "
-            "source /venv/bin/activate && "
-            "pip install ra-aid && "
-            f"ra-aid -m '{escaped_solver_command}' "
-        ).strip(),
+        ("source /venv/bin/activate && " f"ra-aid -m '{escaped_solver_command}' ").strip(),
     ]
 
     env_vars = {
@@ -28,10 +22,12 @@ def get_container_kwargs(
         f"{repo_directory}/.": {"bind": "/app", "mode": "rw"},
         "/tmp/aider_cache": {"bind": "/home/ubuntu", "mode": "rw"},
     }
+    user = f"{os.getuid()}:{os.getgid()}"
     kwargs = {
-        "image": "paulgauthier/aider",
+        "image": "aider-raaid",
         "entrypoint": entrypoint,
         "environment": env_vars,
         "volumes": volumes,
+        "user": user,
     }
     return kwargs
