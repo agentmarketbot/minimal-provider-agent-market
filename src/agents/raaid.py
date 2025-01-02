@@ -11,7 +11,9 @@ def get_container_kwargs(
     entrypoint = [
         "/bin/bash",
         "-c",
-        ("source /venv/bin/activate && " f"ra-aid -m '{escaped_solver_command}' ").strip(),
+        (
+            "source /venv/bin/activate && " f"ra-aid -m '{escaped_solver_command}' --cowboy-mode"
+        ).strip(),
     ]
 
     env_vars = {
