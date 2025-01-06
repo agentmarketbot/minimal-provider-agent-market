@@ -12,12 +12,13 @@ def get_container_kwargs(
         "/bin/bash",
         "-c",
         (
-            "source /venv/bin/activate && " f"ra-aid -m '{escaped_solver_command}' --cowboy-mode"
+            "source /venv/bin/activate && "
+            f"ra-aid -m '{escaped_solver_command}' --provider openai --model bedrock-claude-v2 --cowboy-mode"  # noqa: E501
         ).strip(),
     ]
 
     env_vars = {
-        "ANTHROPIC_API_KEY": SETTINGS.anthropic_api_key,
+        "OPENAI_API_BASE": SETTINGS.openai_api_base,
     }
 
     volumes = {
