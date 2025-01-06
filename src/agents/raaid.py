@@ -32,5 +32,6 @@ def get_container_kwargs(
         "environment": env_vars,
         "volumes": volumes,
         "user": user,
+        "extra_hosts": {"host.docker.internal": "host-gateway"},
     }
     return kwargs
