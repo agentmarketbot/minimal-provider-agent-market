@@ -19,6 +19,7 @@ def get_container_kwargs(
 
     env_vars = {
         "OPENAI_API_BASE": SETTINGS.openai_api_base,
+        "OPENAI_API_KEY": "dummy",
     }
 
     volumes = {
