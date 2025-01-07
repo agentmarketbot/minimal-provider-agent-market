@@ -150,6 +150,7 @@ def _solve_instance(
             container_kwargs = agents.raaid_get_container_kwargs(
                 str(repo_absolute_path),
                 solver_command,
+                settings.foundation_model_name,
             )
 
         logs = launch_container_with_repo_mounted(**container_kwargs)

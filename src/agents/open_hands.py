@@ -4,22 +4,32 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from src.config import SETTINGS
-from src.enums import ModelName
+from src.enums import ModelName, ProviderType
 
 load_dotenv()
 
 
-_MODEL_ALIAS_TO_MODEL: dict[ModelName, str] = {
-    ModelName.gpt_4o: "openai/gpt-4o",
-}
-
-_MODEL_ALIAS_TO_API_KEY_ENV_VAR_NAME: dict[ModelName, str] = {
-    ModelName.gpt_4o: "OPENAI_API_KEY",
+_MODEL_ALIAS_TO_MODEL: dict[ModelName, dict[ProviderType, str]] = {
+    ModelName.gpt_4o: {
+        ProviderType.OPENAI: "openai/gpt-4o",
+    },
+    ModelName.bedrock_claude_v2: {
+        ProviderType.LITELLM: f"litellm_proxy/{ModelName.bedrock_claude_v2.value}",
+    },
 }
 
 _DOCKER_IMAGE = "docker.all-hands.dev/all-hands-ai/openhands:0.18"
 _RUNTIME_IMAGE = "docker.all-hands.dev/all-hands-ai/runtime:0.18-nikolaik"
 _DOCKER_NETWORK_HOST = ["host.docker.internal:host-gateway"]
+_PROVIDER_CONFIGS: dict[ProviderType, dict[str, str]] = {
+    ProviderType.LITELLM: {
+        "LLM_API_BASE": SETTINGS.litellm_api_base,
+        "LLM_API_KEY": SETTINGS.litellm_api_key,
+    },
+    ProviderType.OPENAI: {
+        "OPENAI_API_KEY": SETTINGS.openai_api_key,
+    },
+}
 
 
 def get_container_kwargs(
@@ -41,12 +51,13 @@ def get_container_kwargs(
         "GITHUB_USERNAME": SETTINGS.github_username,
         "GITHUB_EMAIL": SETTINGS.github_email,
         "WORKSPACE_MOUNT_PATH": repo_directory,
-        "LLM_API_KEY": os.getenv(_MODEL_ALIAS_TO_API_KEY_ENV_VAR_NAME[model_name]),
-        "LLM_MODEL": _MODEL_ALIAS_TO_MODEL.get(model_name, model_name.value),
+        "LLM_MODEL": _MODEL_ALIAS_TO_MODEL[model_name][SETTINGS.provider],
         "LOG_ALL_EVENTS": "true",
         "GIT_ASKPASS": "echo",
         "GIT_TERMINAL_PROMPT": "0",
     }
+    for key, value in _PROVIDER_CONFIGS[SETTINGS.provider].items():
+        env_vars[key] = value
     volumes = {
         repo_directory: {"bind": "/opt/workspace_base", "mode": "rw"},
         "/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"},

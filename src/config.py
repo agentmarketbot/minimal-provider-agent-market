@@ -1,10 +1,10 @@
 import os
 
 from dotenv import load_dotenv
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from src.enums import AgentType, ModelName
+from src.enums import AgentType, ModelName, ProviderType
 
 load_dotenv()
 
@@ -36,16 +36,28 @@ class Settings(BaseSettings):
 
     openai_api_base: str | None = Field(None, description="The base URL for the OpenAI API.")
 
+    provider: ProviderType = Field(
+        default=ProviderType.OPENAI, description="The provider to use (openai or litellm)"
+    )
+    litellm_api_key: str = Field("dummy", description="The API key for LiteLLM proxy")
+    litellm_api_base: str | None = Field(None, description="The base URL for the LiteLLM proxy")
+
     class Config:
         case_sensitive = False
 
     @model_validator(mode="after")
     def validate_model(self) -> "Settings":
-        if self.agent_type != AgentType.raaid and self.foundation_model_name is None:
-            raise ValueError("foundation_model_name is required when agent_type is not raaid")
+        if self.agent_type != AgentType.raaid:
+            if self.foundation_model_name is None:
+                raise ValueError("foundation_model_name is required when agent_type is not raaid")
 
-        if self.agent_type == AgentType.raaid and self.openai_api_base is None:
-            raise ValueError("openai_api_base is required when agent_type is raaid")
+        if self.agent_type == AgentType.raaid:
+            if self.litellm_api_base is None:
+                raise ValueError("litellm_api_base is required when agent_type is raaid")
+
+        if self.provider == ProviderType.LITELLM:
+            if self.litellm_api_base is None:
+                raise ValueError("litellm_api_base is required when provider is litellm")
 
         return self
 

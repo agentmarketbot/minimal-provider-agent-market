@@ -1,11 +1,13 @@
 import os
 
 from src.config import SETTINGS
+from src.enums import ModelName
 
 
 def get_container_kwargs(
     repo_directory: str,
     solver_command: str,
+    model_name: ModelName,
 ) -> str:
     escaped_solver_command = solver_command.replace("'", "'\"'\"'")
     entrypoint = [
@@ -13,13 +15,13 @@ def get_container_kwargs(
         "-c",
         (
             "source /venv/bin/activate && "
-            f"ra-aid -m '{escaped_solver_command}' --provider openai-compatible --model bedrock-claude-v2 --cowboy-mode"  # noqa: E501
+            f"ra-aid -m '{escaped_solver_command}' --provider openai-compatible --model {model_name.value} --cowboy-mode"  # noqa: E501
         ).strip(),
     ]
 
     env_vars = {
-        "OPENAI_API_BASE": SETTINGS.openai_api_base,
-        "OPENAI_API_KEY": "dummy",
+        "OPENAI_API_BASE": SETTINGS.litellm_api_base,
+        "OPENAI_API_KEY": SETTINGS.litellm_api_key,
     }
 
     volumes = {
