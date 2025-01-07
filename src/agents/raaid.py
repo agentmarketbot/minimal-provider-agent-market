@@ -13,7 +13,7 @@ def get_container_kwargs(
         "-c",
         (
             "source /venv/bin/activate && "
-            f"ra-aid -m '{escaped_solver_command}' --provider openai --model bedrock-claude-v2 --cowboy-mode"  # noqa: E501
+            f"ra-aid -m '{escaped_solver_command}' --provider openai-compatible --model bedrock-claude-v2 --cowboy-mode"  # noqa: E501
         ).strip(),
     ]
 
