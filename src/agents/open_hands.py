@@ -17,8 +17,8 @@ _MODEL_ALIAS_TO_API_KEY_ENV_VAR_NAME: dict[ModelName, str] = {
     ModelName.gpt_4o: "OPENAI_API_KEY",
 }
 
-_DOCKER_IMAGE = "docker.all-hands.dev/all-hands-ai/openhands:0.15"
-_RUNTIME_IMAGE = "docker.all-hands.dev/all-hands-ai/runtime:0.15-nikolaik"
+_DOCKER_IMAGE = "docker.all-hands.dev/all-hands-ai/openhands:0.18"
+_RUNTIME_IMAGE = "docker.all-hands.dev/all-hands-ai/runtime:0.18-nikolaik"
 _DOCKER_NETWORK_HOST = ["host.docker.internal:host-gateway"]
 
 
@@ -29,11 +29,11 @@ def get_container_kwargs(
 ) -> str:
     solver_command += (
         "\n\n=== SYSTEM REQUIREMENTS ===\n"
-        "MAKE SURE YOU COMMIT TO THE REPOSITORY THE CHANGES PROPOSED. "
+        "NEVER COMMIT THE CHANGES PROPOSED. "
         "NEVER PUSH THE CHANGES. "
         "ALWAYS STAY IN THE SAME REPOSITORY BRANCH."
     )
-    entrypoint = ["python", "-m", "openhands.core.main", "-t", solver_command, "--no-auto-continue"]
+    entrypoint = ["python", "-m", "openhands.core.main", "-t", solver_command]
     env_vars = {
         "SANDBOX_RUNTIME_CONTAINER_IMAGE": _RUNTIME_IMAGE,
         "SANDBOX_USER_ID": str(os.getuid()),
