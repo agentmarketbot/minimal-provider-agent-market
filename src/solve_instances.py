@@ -65,6 +65,7 @@ def _solve_instance(
             "content": (
                 "You are a helpful AI assistant that helps solve technical problems "
                 "and answer questions. Only respond if a response is necessary."
+                "If the user's message doesn't require a response, reply with 'NO_RESPONSE_NEEDED'."
             ),
         },
         {"role": "user", "content": instance_to_solve.instance["background"]},
@@ -83,7 +84,10 @@ def _solve_instance(
         messages=conversation,
     )
 
-    return response.choices[0].message.content
+    return (
+        response.choices[0].message.content
+        or "NO_RESPONSE_NEEDED" in response.choices[0].message.content
+    )
 
 
 def get_awarded_proposals(settings: Settings) -> list[dict]:
