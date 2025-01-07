@@ -1,9 +1,9 @@
 import re
-import time
 
 import openai
 from docker import from_env as docker_from_env
 from loguru import logger
+from requests.exceptions import ReadTimeout
 
 from src.config import SETTINGS
 
@@ -58,24 +58,30 @@ def launch_container_with_repo_mounted(
     logger.info("Container launched")
 
     try:
-        time.sleep(timeout)
-        logger.info("Timeout reached. Examining logs.")
+        logger.info(f"Waiting for container to finish (timeout: {timeout}s)")
+        result = container.wait(timeout=timeout)
+
+        if result["StatusCode"] != 0:
+            raise Exception(f"Container exited with non-zero status code: {result['StatusCode']}")
+
         raw_logs = container.logs(stream=False).decode("utf-8")
         logger.info(f"Raw logs: {raw_logs}")
         logs = _clean_logs(raw_logs)
         logger.info(f"Clean logs: {logs}")
 
+    except ReadTimeout:
+        logger.error(f"Container timed out after {timeout} seconds")
+        raise TimeoutError(f"Container execution exceeded {timeout} seconds timeout")
+
+    except Exception as e:
+        logger.error(f"Failed to wait for container: {e}")
+        raise
+
+    finally:
         logger.info("Removing all containers")
         for container in docker_client.containers.list(all=True):
             container.stop()
             container.remove()
         logger.info("Containers removed")
-
-    except Exception as e:
-        logger.error(f"Failed to wait for container: {e}")
-        for container in docker_client.containers.list(all=True):
-            container.stop()
-            container.remove()
-        raise
 
     return logs
