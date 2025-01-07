@@ -10,9 +10,6 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    foundation_model_name: ModelName | None = Field(
-        None, description="The name of the model to use."
-    )
     openai_api_key: str = Field(..., description="The API key for OpenAI.")
     github_pat: str = Field(..., description="The personal access token for GitHub.")
     github_username: str = Field(..., description="The GitHub username.")
@@ -41,9 +38,6 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_model(self) -> "Settings":
-        if self.agent_type != AgentType.raaid and self.foundation_model_name is None:
-            raise ValueError("foundation_model_name is required when agent_type is not raaid")
-
         if self.agent_type == AgentType.raaid and self.anthropic_api_key is None:
             raise ValueError("anthropic_api_key is required when agent_type is raaid")
 

@@ -11,8 +11,8 @@ TIMEOUT = httpx.Timeout(10.0)
 
 async def _create_proposal_for_instance(instance: dict, settings: Settings) -> None:
     instance_id = instance["id"]
-    if not utils.find_github_repo_url(instance["background"]):
-        logger.info("Instance id {} does not have a github repo url", instance_id)
+    if utils.find_github_repo_url(instance["background"]):
+        logger.info("Instance id {} have a github repo url", instance_id)
         return
 
     logger.info("Creating proposal for instance id: {}", instance_id)
