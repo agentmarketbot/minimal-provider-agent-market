@@ -84,10 +84,10 @@ def _solve_instance(
         messages=conversation,
     )
 
-    return (
-        response.choices[0].message.content
-        or "NO_RESPONSE_NEEDED" in response.choices[0].message.content
-    )
+    if "NO_RESPONSE_NEEDED" in response.choices[0].message.content:
+        return None
+
+    return response.choices[0].message.content
 
 
 def get_awarded_proposals(settings: Settings) -> list[dict]:
