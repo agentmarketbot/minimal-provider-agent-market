@@ -154,7 +154,7 @@ def _solve_instance(
 
         logs = launch_container_with_repo_mounted(**container_kwargs)
         if instance_to_solve.pr_url:
-            utils.add_aider_logs_as_pr_comments(instance_to_solve.pr_url, settings.github_pat, logs)
+            utils.add_logs_as_pr_comments(instance_to_solve.pr_url, settings.github_pat, logs)
 
         utils.add_and_commit(str(repo_absolute_path))
         pushed = utils.push_commits(str(repo_absolute_path), settings.github_pat)

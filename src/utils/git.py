@@ -476,7 +476,7 @@ def _build_solver_command_from_chat(background: str, user_messages: str) -> str:
     return result
 
 
-def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> None:
+def add_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> None:
     g = github.Github(github_token)
 
     pr_path = pr_url.split("github.com/")[-1]
