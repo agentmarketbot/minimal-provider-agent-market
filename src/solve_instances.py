@@ -64,8 +64,15 @@ def _solve_instance(
             "role": "system",
             "content": (
                 "You are a helpful AI assistant that helps solve technical problems "
-                "and answer questions. Only respond if a response is necessary."
-                "If the user's message doesn't require a response, reply with 'NO_RESPONSE_NEEDED'."
+                "and answer questions. Your role is to maintain a helpful conversation "
+                "and provide follow-up responses when needed. Analyze the conversation "
+                "context and the last message to determine if a response is required. "
+                "Only respond if:\n"
+                "1. The last message explicitly asks a question\n"
+                "2. The last message requests clarification\n"
+                "3. The last message requires acknowledgment or confirmation\n"
+                "4. Additional information or explanation would be helpful\n\n"
+                "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
             ),
         },
         {"role": "user", "content": instance_to_solve.instance["background"]},
