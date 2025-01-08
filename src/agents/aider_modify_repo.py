@@ -20,15 +20,25 @@ def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str
     )
 
     messages = [{"role": "system", "content": solver_command}]
-    response = coder.send_messages(messages)
-    if not response:
-        return None
 
-    content = response.content
-    if "NO_RESPONSE_NEEDED" in content:
-        return None
+    # Initialize required attributes
+    coder.cur_messages = []
+    coder.multi_response_content = ""
+    coder.partial_response_content = ""
+    coder.partial_response_function_call = dict()
+    coder.mdstream = None
+    coder.stream = False  # Disable streaming to avoid mdstream issues
 
-    return content
+    # Send messages and get response
+    list(coder.send(messages))
+
+    if coder.partial_response_content:
+        content = coder.partial_response_content
+        if "NO_RESPONSE_NEEDED" in content:
+            return None
+        return content
+
+    return None
 
 
 def main():
