@@ -17,9 +17,13 @@ def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str
         edit_format="diff",
         suggest_shell_commands=False,
         use_git=False,
+        cache_prompts=True,  # Enable prompt caching
     )
 
+    # Add cache control headers to the message
     messages = [{"role": "system", "content": solver_command}]
+    if coder.add_cache_headers:
+        messages[0]["cache-control"] = "max-age=604800"  # Cache for 1 week
 
     # Initialize required attributes
     coder.cur_messages = []

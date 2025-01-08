@@ -69,20 +69,14 @@ def _solve_instance(
         "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
     )
 
-    # Get unique identifiers for caching
-    instance_id = instance_to_solve.instance["id"]
-    last_message = instance_to_solve.messages_history.split("\n")[-1] if instance_to_solve.messages_history else ""
-    
     solver_command_parts = [
         "Here is the context and task:",
         f"System: {system_prompt}",
         f"Background: {instance_to_solve.instance['background']}",
-        f"Instance ID: {instance_id}",  # Add instance ID for uniqueness
     ]
 
     if instance_to_solve.messages_history:
         solver_command_parts.append(f"Conversation history:\n{instance_to_solve.messages_history}")
-        solver_command_parts.append(f"Last message hash: {hash(last_message)}")  # Add message hash for caching
 
     solver_command = "\n".join(solver_command_parts)
 
