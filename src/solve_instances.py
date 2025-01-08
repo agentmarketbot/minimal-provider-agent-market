@@ -3,10 +3,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import httpx
-import openai
 from loguru import logger
 
+from src.agents.aider_modify_repo import modify_repo_with_aider
 from src.config import SETTINGS, Settings
+from src.enums import ModelName
 
 TIMEOUT = httpx.Timeout(10.0)
 
@@ -55,46 +56,50 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[Ins
 
 def _solve_instance(
     instance_to_solve: InstanceToSolve,
-    settings: Settings,
 ) -> str:
     logger.info("Solving instance id: {}", instance_to_solve.instance["id"])
 
-    conversation = [
-        {
-            "role": "system",
-            "content": (
-                "You are a helpful AI assistant that helps solve technical problems "
-                "and answer questions. Your role is to maintain a helpful conversation "
-                "and provide follow-up responses when needed. Analyze the conversation "
-                "context and the last message to determine if a response is required. "
-                "Only respond if:\n"
-                "1. The last message explicitly asks a question\n"
-                "2. The last message requests clarification\n"
-                "3. The last message requires acknowledgment or confirmation\n"
-                "4. Additional information or explanation would be helpful\n\n"
-                "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
-            ),
-        },
-        {"role": "user", "content": instance_to_solve.instance["background"]},
+    # Build the conversation context
+    system_prompt = (
+        "You are a helpful AI assistant that helps answer questions. Your role "
+        "is to maintain a helpful conversation and provide follow-up responses "
+        "when needed. Analyze the conversation context and the last message "
+        "to determine if a response is required. Only respond if there is a "
+        "follow up needed\n"
+        "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
+    )
+
+    solver_command_parts = [
+        "Here is the context and task:",
+        f"System: {system_prompt}",
+        f"Background: {instance_to_solve.instance['background']}",
     ]
 
     if instance_to_solve.messages_history:
-        conversation.append(
-            {
-                "role": "user",
-                "content": f"Previous conversation:\n{instance_to_solve.messages_history}",
-            }
+        solver_command_parts.append(f"Conversation history:\n{instance_to_solve.messages_history}")
+
+    solver_command = "\n".join(solver_command_parts)
+
+    try:
+        response = modify_repo_with_aider(ModelName.gpt_4o, solver_command)
+        if not response:
+            logger.warning("Received empty response from Aider")
+            return None
+
+        if "NO_RESPONSE_NEEDED" in response:
+            logger.info("No response needed for this instance")
+            return None
+
+        return response.strip()
+
+    except Exception as e:
+        logger.error(
+            "Error using Aider for instance {}: {}",
+            instance_to_solve.instance["id"],
+            str(e),
+            exc_info=True,
         )
-
-    response = openai.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=conversation,
-    )
-
-    if "NO_RESPONSE_NEEDED" in response.choices[0].message.content:
         return None
-
-    return response.choices[0].message.content
 
 
 def get_awarded_proposals(settings: Settings) -> list[dict]:
@@ -145,10 +150,7 @@ def solve_instances_handler() -> None:
             if not instance_to_solve.provider_needs_response:
                 continue
 
-            message = _solve_instance(
-                instance_to_solve,
-                SETTINGS,
-            )
+            message = _solve_instance(instance_to_solve)
             if not message:
                 continue
 

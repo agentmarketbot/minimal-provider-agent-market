@@ -1,16 +1,34 @@
 import argparse
+from pathlib import Path
 
 from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
+from aider.repo import GitRepo
 
 
 def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str:
     io = InputOutput(yes=True)
     model = Model(model_name)
-    coder = Coder.create(main_model=model, io=io)
-    response = coder.chat(solver_command)
-    return response.content
+
+    coder = Coder.create(
+        main_model=model,
+        io=io,
+        edit_format="diff",
+        suggest_shell_commands=False,
+        use_git=False,
+    )
+
+    messages = [{"role": "system", "content": solver_command}]
+    response = coder.send_messages(messages)
+    if not response:
+        return None
+
+    content = response.content
+    if "NO_RESPONSE_NEEDED" in content:
+        return None
+
+    return content
 
 
 def main():
