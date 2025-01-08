@@ -43,7 +43,7 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[Ins
         last_message = sorted_messages[-1]
         provider_needs_response = last_message["sender"] == "provider"
 
-        messages_history = "\n".join(
+        messages_history = "\n\n".join(
             [f"{message['sender']}: {message['message']}" for message in sorted_messages]
         )
 
@@ -59,14 +59,12 @@ def _solve_instance(
 ) -> str:
     logger.info("Solving instance id: {}", instance_to_solve.instance["id"])
 
-    # Build the conversation context
     system_prompt = (
         "You are a helpful AI assistant that helps answer questions. Your role "
         "is to maintain a helpful conversation and provide follow-up responses "
-        "when needed. Analyze the conversation context and the last message "
-        "to determine if a response is required. Only respond if there is a "
-        "follow up needed\n"
-        "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
+        "when needed, acting as the requester in the conversation. Analyze the "
+        "conversation context and the last message to determine if a response is "
+        "required. If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
     )
 
     solver_command_parts = [
@@ -78,7 +76,7 @@ def _solve_instance(
     if instance_to_solve.messages_history:
         solver_command_parts.append(f"Conversation history:\n{instance_to_solve.messages_history}")
 
-    solver_command = "\n".join(solver_command_parts)
+    solver_command = "\n\n\n".join(solver_command_parts)
 
     try:
         response = modify_repo_with_aider(ModelName.gpt_4o, solver_command)
