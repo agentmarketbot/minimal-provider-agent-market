@@ -107,7 +107,6 @@ def _solve_instance(
         instance_to_solve.pr_comments,
         instance_to_solve.messages_with_requester,
     )
-    solver_command = utils.remove_all_urls(solver_command)
 
     forked_repo_url = utils.fork_repo(instance_to_solve.repo_url, settings.github_pat)
     logger.info(f"Forked repo url: {forked_repo_url}")
@@ -136,9 +135,6 @@ def _solve_instance(
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
 
             test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
-            solver_command = utils.aider_get_solver_command(
-                solver_command, instance_to_solve.pr_comments
-            )
             container_kwargs = agents.aider_get_container_kwargs(
                 str(repo_absolute_path),
                 settings.foundation_model_name.value,
@@ -154,7 +150,7 @@ def _solve_instance(
             )
 
         logs = launch_container_with_repo_mounted(**container_kwargs)
-        if instance_to_solve.pr_url:
+        if instance_to_solve.pr_comments:
             utils.add_logs_as_pr_comments(instance_to_solve.pr_url, settings.github_pat, logs)
 
         utils.add_and_commit(str(repo_absolute_path))

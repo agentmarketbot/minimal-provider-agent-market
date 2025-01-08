@@ -8,7 +8,7 @@ from aider.models import Model
 def modify_repo_with_aider(model_name, solver_command, test_command=None) -> None:
     io = InputOutput(yes=True)
     model = Model(model_name)
-    coder = Coder.create(main_model=model, io=io)
+    coder = Coder.create(main_model=model, io=io, use_git=False)
     coder.run(solver_command)
 
     if test_command:

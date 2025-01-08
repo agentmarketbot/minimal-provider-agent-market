@@ -94,7 +94,7 @@ def get_container_kwargs(
         "-c",
         (
             "source /venv/bin/activate && "
-            f"python modify_repo.py --model-name {shlex.quote(model_name)} "
+            f"python aider_modify_repo.py --model-name {shlex.quote(model_name)} "
             f"--solver-command '{escaped_solver_command}' "
             f"{test_args_and_command}"
         ).strip(),
