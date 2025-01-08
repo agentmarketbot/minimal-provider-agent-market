@@ -1,12 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional, Set, Tuple
+from typing import Optional
 
 import httpx
 from loguru import logger
-
-# Global set to store processed message IDs
-processed_messages: Set[Tuple[str, str]] = set()
 
 from src.agents.aider_modify_repo import modify_repo_with_aider
 from src.config import SETTINGS, Settings
@@ -46,13 +43,6 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[Ins
         last_message = sorted_messages[-1]
         provider_needs_response = last_message["sender"] == "provider"
 
-        # Check if we've already processed this provider message
-        if provider_needs_response:
-            message_id = (instance_id, last_message["timestamp"])
-            if message_id in processed_messages:
-                return None
-            processed_messages.add(message_id)
-
         messages_history = "\n".join(
             [f"{message['sender']}: {message['message']}" for message in sorted_messages]
         )
@@ -79,14 +69,20 @@ def _solve_instance(
         "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
     )
 
+    # Get unique identifiers for caching
+    instance_id = instance_to_solve.instance["id"]
+    last_message = instance_to_solve.messages_history.split("\n")[-1] if instance_to_solve.messages_history else ""
+    
     solver_command_parts = [
         "Here is the context and task:",
         f"System: {system_prompt}",
         f"Background: {instance_to_solve.instance['background']}",
+        f"Instance ID: {instance_id}",  # Add instance ID for uniqueness
     ]
 
     if instance_to_solve.messages_history:
         solver_command_parts.append(f"Conversation history:\n{instance_to_solve.messages_history}")
+        solver_command_parts.append(f"Last message hash: {hash(last_message)}")  # Add message hash for caching
 
     solver_command = "\n".join(solver_command_parts)
 
