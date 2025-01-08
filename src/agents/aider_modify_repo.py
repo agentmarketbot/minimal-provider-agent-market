@@ -5,14 +5,12 @@ from aider.io import InputOutput
 from aider.models import Model
 
 
-def modify_repo_with_aider(model_name, solver_command, test_command=None) -> None:
+def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str:
     io = InputOutput(yes=True)
     model = Model(model_name)
     coder = Coder.create(main_model=model, io=io)
-    coder.run(solver_command)
-
-    if test_command:
-        coder.run(f"/test {test_command}")
+    response = coder.chat(solver_command)
+    return response.content
 
 
 def main():
