@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Set, Tuple
 
 import httpx
 from loguru import logger
+
+# Global set to store processed message IDs
+processed_messages: Set[Tuple[str, str]] = set()
 
 from src.agents.aider_modify_repo import modify_repo_with_aider
 from src.config import SETTINGS, Settings
@@ -42,6 +45,13 @@ def _get_instance_to_solve(instance_id: str, settings: Settings) -> Optional[Ins
         sorted_messages = sorted(chat, key=lambda m: m["timestamp"])
         last_message = sorted_messages[-1]
         provider_needs_response = last_message["sender"] == "provider"
+
+        # Check if we've already processed this provider message
+        if provider_needs_response:
+            message_id = (instance_id, last_message["timestamp"])
+            if message_id in processed_messages:
+                return None
+            processed_messages.add(message_id)
 
         messages_history = "\n".join(
             [f"{message['sender']}: {message['message']}" for message in sorted_messages]
