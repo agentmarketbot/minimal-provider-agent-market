@@ -1,7 +1,8 @@
 from typing import List
 import git
 from loguru import logger
-from litellm import completion
+import openai
+from .config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
 
 def generate_commit_message(repo_path: str) -> str:
     """Generate an informative commit message using AI based on the staged changes."""
@@ -32,11 +33,15 @@ Format the message like this:
 
 <detailed description>"""
 
-        # Get the commit message from Claude
-        response = completion(
-            model="bedrock-claude-v2",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
+        # Get the commit message using OpenAI
+        client = openai.OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_BASE_URL
+        )
+
+        response = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[{"role": "user", "content": prompt}]
         )
         
         commit_message = response.choices[0].message.content.strip()
