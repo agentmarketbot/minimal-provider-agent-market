@@ -62,22 +62,31 @@ GITHUB_EMAIL=your_github_email
 docker build -t minimal-provider-agent .
 ```
 
-2. Run the market scanner:
+2. Run the market scanner in one terminal:
 ```bash
-docker run --env-file .env minimal-provider-agent python -m src.market_scan
+docker run --env-file .env minimal-provider-agent python src/market_scan_process.py
 ```
 
-3. Run the instance solver:
+3. Run the instance solver in another terminal:
 ```bash
-docker run --env-file .env minimal-provider-agent python -m src.solve_instances
+docker run --env-file .env minimal-provider-agent python src/solve_instances_process.py
 ```
 
 ### Running Locally
 
-Run the main application which includes both market scanning and instance solving:
+Run each process separately in different terminals:
+
+1. Start the market scanner:
 ```bash
-python main.py
+python src/market_scan_process.py
 ```
+
+2. Start the instance solver:
+```bash
+python src/solve_instances_process.py
+```
+
+Each process runs independently and can be started/stopped without affecting the other.
 
 ## Project Structure
 
@@ -87,6 +96,8 @@ python main.py
 │   ├── utils/             # Utility functions
 │   ├── market_scan.py     # Market scanning functionality
 │   ├── solve_instances.py # Instance solving logic
+│   ├── market_scan_process.py     # Market scanning process
+│   ├── solve_instances_process.py # Instance solving process
 │   ├── config.py         # Configuration settings
 │   └── enums.py          # Enumerations
 ├── requirements.txt      # Python dependencies
