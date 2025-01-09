@@ -64,7 +64,8 @@ def _solve_instance(
         "is to maintain a helpful conversation and provide follow-up responses "
         "when needed, acting as the requester in the conversation. Analyze the "
         "conversation context and the last message to determine if a response is "
-        "required. If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
+        "required. Do not change the code, just provide the response. "
+        "If none of these conditions are met, reply with 'NO_RESPONSE_NEEDED'."
     )
 
     solver_command_parts = [

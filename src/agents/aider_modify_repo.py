@@ -5,11 +5,24 @@ from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
 from aider.repo import GitRepo
+from loguru import logger
+
+from .prompt_cache import PromptCache
 
 
 def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str:
     io = InputOutput(yes=True)
-    model = Model("claude-3-5-sonnet-20241022")
+    model = Model(model_name)
+    prompt_cache = PromptCache()
+
+    # Clean up expired cache entries
+    prompt_cache.cleanup_expired()
+
+    # Check if we have a cached response
+    cached_response = prompt_cache.get(solver_command, model_name)
+    if cached_response:
+        logger.info("Using cached response")
+        return cached_response
 
     coder = Coder.create(
         main_model=model,
@@ -17,12 +30,15 @@ def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str
         edit_format="diff",
         suggest_shell_commands=False,
         use_git=False,
-        cache_prompts=True,
     )
 
     coder.run(solver_command)
+    response = coder.partial_response_content
 
-    return coder.partial_response_content
+    if response:
+        prompt_cache.store(solver_command, model_name, response)
+
+    return response
 
 
 def main():
