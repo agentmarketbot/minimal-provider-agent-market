@@ -9,7 +9,7 @@ from aider.repo import GitRepo
 
 def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str:
     io = InputOutput(yes=True)
-    model = Model(model_name)
+    model = Model("claude-3-5-sonnet-20241022")
 
     coder = Coder.create(
         main_model=model,
