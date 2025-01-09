@@ -36,6 +36,26 @@ def fork_repo(github_url: str, github_token: str) -> str:
     return forked_repo.clone_url
 
 
+def add_and_commit(repo_path: str, commit_message="agent bot commit") -> None:
+    try:
+        repo = git.Repo(repo_path)
+        logger.info(f"Repository initialized at {repo_path}")
+
+        if repo.is_dirty(untracked_files=True):
+            logger.info(f"Repository is dirty. Staging all changes.")
+            repo.git.add(A=True)
+            logger.info("All changes staged successfully.")
+
+            repo.index.commit(commit_message)
+            logger.info(f"Changes committed with message: '{commit_message}'")
+        else:
+            logger.info("No unstaged changes detected. Nothing to commit.")
+
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        raise
+
+
 def push_commits(repo_path: str, github_token: str) -> bool:
     try:
         repo = git.Repo(repo_path)
@@ -44,12 +64,12 @@ def push_commits(repo_path: str, github_token: str) -> bool:
             logger.error("The HEAD is detached. Cannot push commits.")
             return False
 
-        if "main" not in repo.heads:
-            main_branch = "master"
-        else:
-            main_branch = "main"
+        current_branch = repo.active_branch.name
 
-        if repo.head.commit != repo.remotes.origin.refs[main_branch].commit:
+        repo.remotes.origin.fetch()
+
+        remote_branch = f"origin/{current_branch}"
+        if remote_branch in repo.refs and repo.head.commit != repo.refs[remote_branch].commit:
             logger.info("There are commits ahead of the remote branch.")
         else:
             logger.info("No new commits to push.")
@@ -62,12 +82,11 @@ def push_commits(repo_path: str, github_token: str) -> bool:
             )
             repo.remotes.origin.set_url(remote_url)
 
-        current_branch = repo.active_branch.name
-        repo.remotes.origin.push(refspec=f"{current_branch}:{current_branch}", set_upstream=True)
+        repo.remotes.origin.push()
         logger.info("Changes pushed to remote.")
         return True
     except Exception as e:
-        logger.error("Error pushing changes: {}", e)
+        logger.error(f"Error pushing changes: {e}")
         raise
 
 
@@ -209,25 +228,37 @@ def set_git_config(username: str, email: str, repo_dir: str):
 def create_and_push_branch(repo_path, branch_name, github_token):
     try:
         repo = git.Repo(repo_path)
-        logger.info(f"Repository initialized at {repo_path}.")
+        repo.remotes.origin.fetch()
+        logger.info(f"Repository initialized and fetched at {repo_path}")
 
         if repo.bare:
             logger.error("The repository is bare. Cannot perform operations.")
             raise Exception("The repository is bare. Cannot perform operations.")
 
-        if branch_name in repo.heads:
+        local_branches = [head.name for head in repo.heads]
+        logger.info(f"Local heads are: {local_branches}")
+        remote_branches = [ref.name.split("/")[-1] for ref in repo.remotes.origin.refs if "heads"]
+        logger.info(f"Remote branches are: {remote_branches}")
+
+        branch_in_remote = branch_name in remote_branches
+
+        if branch_name in local_branches:
             logger.info(f"Branch '{branch_name}' already exists locally.")
+        elif branch_in_remote:
+            logger.info(f"Branch '{branch_name}' exists remotely. Checking it out locally.")
+            repo.git.checkout(f"origin/{branch_name}", b=branch_name)
         else:
+            logger.info(f"Branch '{branch_name}' does not exist. Creating locally.")
             repo.create_head(branch_name)
-            logger.info(f"Branch '{branch_name}' created locally.")
 
         repo.heads[branch_name].checkout()
         logger.info(f"Checked out to branch '{branch_name}'.")
 
-        current_branch = repo.active_branch.name
-        logger.info(f"Pulling latest changes from origin/{current_branch}")
-
-        repo.remotes.origin.pull(current_branch)
+        if branch_in_remote:
+            logger.info(f"Pulling latest changes from origin/{branch_name}")
+            repo.remotes.origin.pull(branch_name)
+        else:
+            logger.info(f"No remote branch '{branch_name}' to pull from.")
 
         g = github.Github(github_token)
         logger.info("Authenticated with GitHub using the provided token.")
@@ -279,7 +310,11 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
 
     last_comment = None
     if last_issue_comment and last_review_comment:
-        last_comment = last_issue_comment if last_issue_comment.created_at > last_review_comment.created_at else last_review_comment
+        last_comment = (
+            last_issue_comment
+            if last_issue_comment.created_at > last_review_comment.created_at
+            else last_review_comment
+        )
     elif last_issue_comment:
         last_comment = last_issue_comment
     elif last_review_comment:
@@ -325,30 +360,123 @@ def get_last_pr_comments(pr_url: str, github_token: str) -> str | bool:
     return result
 
 
-def add_pr_comments_to_background(background: str, pr_info: str) -> str:
+def build_solver_command(
+    background: str, pr_comments: Optional[str], user_messages: Optional[str]
+) -> str:
+    if pr_comments and user_messages:
+        return _build_solver_command_from_pr_and_chat(background, pr_comments, user_messages)
+
+    if pr_comments:
+        return _build_solver_command_from_pr(background, pr_comments)
+
+    if user_messages:
+        return _build_solver_command_from_chat(background, user_messages)
+
+    return _build_solver_command_from_instance_background(background)
+
+
+def _build_solver_command_from_instance_background(background: str) -> str:
     result = "\n".join(
         [
             "=== SYSTEM INSTRUCTIONS ===",
-            "You are a helpful AI assistant that implements code changes based on pull request feedback.",
-            "Your task is to analyze the issue description and specifically address the LAST comment in the pull request.",
-            "Focus only on implementing changes requested in the most recent comment.",
-            "",
+            "You are a helpful AI assistant that interacts with a human and implements code "
+            "changes. Your task is to analyze the issue description and specifically address "
+            "the conversation with the user. Focus only on implementing changes requested in "
+            "the conversation with the user. Ensure your changes maintain code quality and "
+            "follow the project's standards",
+            "=== CONTEXT ===",
+            "ISSUE DESCRIPTION",
+            background,
+            "=== REQUIRED ACTIONS ===",
+            "1. Review the issue description to understand the context",
+            "2. Implement the necessary code changes to solve the issue",
+            "3. Ensure your changes maintain code quality and follow the project's standards",
+        ]
+    )
+    return result
+
+
+def _build_solver_command_from_pr_and_chat(
+    background: str, pr_comments: str, user_messages: str
+) -> str:
+    result = "\n".join(
+        [
+            "=== SYSTEM INSTRUCTIONS ===",
+            "You are a helpful AI assistant that interacts with a human and implements code "
+            "changes based on feedback provided via a pull request or a chat. Your task is to "
+            "analyze the issue description and specifically address the LAST comment in the "
+            "pull request. Focus only on implementing changes requested in the most recent "
+            "comment.",
             "=== CONTEXT ===",
             "ISSUE DESCRIPTION",
             background,
             "PULL REQUEST DETAILS",
-            pr_info,
-            "\n=== REQUIRED ACTIONS ===",
+            pr_comments,
+            "CONVERSATION WITH THE USER",
+            user_messages,
+            "=== REQUIRED ACTIONS ===",
             "1. Review the issue description to understand the context",
             "2. Analyze the pull request diff and comments",
-            "3. Implement the necessary code changes addressing the feedback in the last comment",
+            "3. Analyze the conversation with the user",
+            "4. Implement the necessary code changes addressing the feedback in the last comment "
+            "of the PR and the conversation with the user",
+            "5. Ensure your changes maintain code quality and follow the project's standards",
+        ]
+    )
+    return result
+
+
+def _build_solver_command_from_pr(background: str, pr_comments: str) -> str:
+    result = "\n".join(
+        [
+            "=== SYSTEM INSTRUCTIONS ===",
+            "You are a helpful AI assistant that interacts with a human and implements code "
+            "changes. Your task is to analyze the issue description and specifically address "
+            "the last comment in the pull request. Focus only on implementing changes requested "
+            "in the most recent comment. Ensure your changes maintain code quality and follow "
+            "the project's standards",
+            "=== CONTEXT ===",
+            "ISSUE DESCRIPTION",
+            background,
+            "PULL REQUEST DETAILS",
+            pr_comments,
+            "=== REQUIRED ACTIONS ===",
+            "1. Review the issue description to understand the context",
+            "2. Analyze the pull request diff and comments",
+            "3. Implement the necessary code changes addressing the feedback in the last comment "
+            "of the PR",
             "4. Ensure your changes maintain code quality and follow the project's standards",
         ]
     )
     return result
 
 
-def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> None:
+def _build_solver_command_from_chat(background: str, user_messages: str) -> str:
+    result = "\n".join(
+        [
+            "=== SYSTEM INSTRUCTIONS ===",
+            "You are a helpful AI assistant that interacts with a human and implements code "
+            "changes. Your task is to analyze the issue description and specifically address the "
+            "conversation with the user. Focus only on implementing changes requested in the "
+            "conversation with the user. Ensure your changes maintain code quality and follow the "
+            "project's standards",
+            "=== CONTEXT ===",
+            "ISSUE DESCRIPTION",
+            background,
+            "CONVERSATION WITH THE USER",
+            user_messages,
+            "=== REQUIRED ACTIONS ===",
+            "1. Review the issue description to understand the context",
+            "2. Analyze the conversation with the user",
+            "3. Implement the necessary code changes addressing the feedback in the conversation "
+            "with the user",
+            "4. Ensure your changes maintain code quality and follow the project's standards",
+        ]
+    )
+    return result
+
+
+def add_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> None:
     g = github.Github(github_token)
 
     pr_path = pr_url.split("github.com/")[-1]
@@ -361,10 +489,10 @@ def add_aider_logs_as_pr_comments(pr_url: str, github_token: str, logs: str) -> 
     comment = f"## Aider:\n{logs}\n"
 
     pr.create_issue_comment(comment)
-    logger.info("Successfully added aider logs as PR comment")
+    logger.info("Successfully added logs as PR comment")
 
 
-def get_pr_url(chat_text: str) -> str:
+def get_pr_url(chat_text: str) -> Optional[str]:
     pr_url_pattern = r"https://github\.com/[^/]+/[^/]+/pull/\d+"
     match = re.search(pr_url_pattern, chat_text)
     if match:

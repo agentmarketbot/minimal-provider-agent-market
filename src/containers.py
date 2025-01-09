@@ -1,19 +1,14 @@
-import os
 import re
-import shlex
 
 import openai
 from docker import from_env as docker_from_env
-from dotenv import load_dotenv
 from loguru import logger
+from requests.exceptions import ReadTimeout
 
 from src.config import SETTINGS
 
-DOCKER_IMAGE = "paulgauthier/aider"
-load_dotenv()
-ENV_VARS = {key: os.getenv(key) for key in os.environ.keys()}
-WEAK_MODEL = "gpt-4o-mini"
 openai.api_key = SETTINGS.openai_api_key
+WEAK_MODEL = "gpt-4o-mini"
 
 
 def _clean_logs(logs: str) -> str:
@@ -49,61 +44,44 @@ def _clean_logs(logs: str) -> str:
 
 
 def launch_container_with_repo_mounted(
-    repo_directory: str,
-    model_name: str,
-    solver_command: str,
-    test_command: str,
     timeout: int = 300,
+    **kwargs,
 ) -> str:
     docker_client = docker_from_env()
-
-    escaped_solver_command = solver_command.replace("'", "'\"'\"'")
-    escaped_test_command = shlex.quote(test_command) if test_command else ""
-
-    test_args_and_command = f" --test-command {escaped_test_command}" if test_command else ""
-
-    entrypoint = [
-        "/bin/bash",
-        "-c",
-        (
-            f"source /venv/bin/activate && python modify_repo.py --model-name {shlex.quote(model_name)} "  # noqa: E501
-            f"--solver-command '{escaped_solver_command}'{test_args_and_command}"
-        ),
-    ]
-
-    logger.info(f"Launching container with entrypoint: {entrypoint}")
+    logger.info("Launching container")
     container = docker_client.containers.run(
-        DOCKER_IMAGE,
-        entrypoint=entrypoint,
-        user=f"{os.getuid()}:{os.getgid()}",
-        volumes={
-            f"{repo_directory}/.": {"bind": "/app", "mode": "rw"},
-            "/tmp/aider_cache": {"bind": "/home/ubuntu", "mode": "rw"},
-        },
-        environment=ENV_VARS,
-        detach=True,
+        **kwargs,
         tty=True,
         stdin_open=True,
+        detach=True,
     )
     logger.info("Container launched")
 
     try:
+        logger.info(f"Waiting for container to finish (timeout: {timeout}s)")
         result = container.wait(timeout=timeout)
 
-        logs = _clean_logs(container.logs(stream=False).decode("utf-8"))
+        if result["StatusCode"] != 0:
+            raise Exception(f"Container exited with non-zero status code: {result['StatusCode']}")
 
-        logger.info(f"Logs: {logs}")
+        raw_logs = container.logs(stream=False).decode("utf-8")
+        logger.info(f"Raw logs: {raw_logs}")
+        logs = _clean_logs(raw_logs)
+        logger.info(f"Clean logs: {logs}")
 
-        exit_status = result.get("StatusCode", -1)
-        logger.info(f"Container finished with exit code: {exit_status}")
-
-        container.remove()
-        logger.info("Container removed")
+    except ReadTimeout:
+        logger.error(f"Container timed out after {timeout} seconds")
+        raise TimeoutError(f"Container execution exceeded {timeout} seconds timeout")
 
     except Exception as e:
         logger.error(f"Failed to wait for container: {e}")
-        container.stop()
-        container.remove()
         raise
+
+    finally:
+        logger.info("Removing all containers")
+        for container in docker_client.containers.list(all=True):
+            container.stop()
+            container.remove()
+        logger.info("Containers removed")
 
     return logs

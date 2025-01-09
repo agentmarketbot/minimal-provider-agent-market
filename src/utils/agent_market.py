@@ -71,7 +71,5 @@ def remove_all_urls(text: str) -> str:
     return re.sub(r"https?:\/\/[^\s]+", "", text)
 
 
-def get_solver_command(instance_background: str, pr_comments: Optional[str]) -> str:
-    if not pr_comments:
-        return instance_background
-    return instance_background
+def format_messages(messages: list[dict]) -> str:
+    return "\n".join([m["message"] for m in messages])

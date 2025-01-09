@@ -1,16 +1,18 @@
 import os
 
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings
 
-from src.enums import ModelName
+from src.enums import AgentType, ModelName, ProviderType
 
 load_dotenv()
 
 
 class Settings(BaseSettings):
-    foundation_model_name: ModelName = Field(..., description="The name of the model to use.")
+    foundation_model_name: ModelName | None = Field(
+        None, description="The name of the model to use."
+    )
     openai_api_key: str = Field(..., description="The API key for OpenAI.")
     github_pat: str = Field(..., description="The personal access token for GitHub.")
     github_username: str = Field(..., description="The GitHub username.")
@@ -30,9 +32,34 @@ class Settings(BaseSettings):
     )
 
     max_bid: float = Field(0.01, gt=0, description="The maximum bid for a proposal.")
+    agent_type: AgentType = Field(..., description="The type of agent to use.")
+
+    openai_api_base: str | None = Field(None, description="The base URL for the OpenAI API.")
+
+    provider: ProviderType = Field(
+        default=ProviderType.OPENAI, description="The provider to use (openai or litellm)"
+    )
+    litellm_api_key: str = Field("dummy", description="The API key for LiteLLM proxy")
+    litellm_api_base: str | None = Field(None, description="The base URL for the LiteLLM proxy")
 
     class Config:
         case_sensitive = False
+
+    @model_validator(mode="after")
+    def validate_model(self) -> "Settings":
+        if self.agent_type != AgentType.raaid:
+            if self.foundation_model_name is None:
+                raise ValueError("foundation_model_name is required when agent_type is not raaid")
+
+        if self.agent_type == AgentType.raaid:
+            if self.litellm_api_base is None:
+                raise ValueError("litellm_api_base is required when agent_type is raaid")
+
+        if self.provider == ProviderType.LITELLM:
+            if self.litellm_api_base is None:
+                raise ValueError("litellm_api_base is required when provider is litellm")
+
+        return self
 
     @classmethod
     def load_settings(cls) -> "Settings":
