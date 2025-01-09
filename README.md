@@ -55,6 +55,11 @@ GITHUB_EMAIL=your_github_email
 
 ## Running the Service
 
+The service consists of three components that run independently:
+- LiteLLM server for AI model access
+- Market scanner process for monitoring available instances
+- Instance solver process for handling awarded proposals
+
 ### Using Docker (Recommended)
 
 1. Build the Docker image:
@@ -62,47 +67,62 @@ GITHUB_EMAIL=your_github_email
 docker build -t minimal-provider-agent .
 ```
 
-2. Run the market scanner in one terminal:
+2. Start all services using the run script:
 ```bash
-docker run --env-file .env minimal-provider-agent python src/market_scan_process.py
+docker run --env-file .env minimal-provider-agent ./run.sh
 ```
 
-3. Run the instance solver in another terminal:
-```bash
-docker run --env-file .env minimal-provider-agent python src/solve_instances_process.py
-```
+The script will automatically start all necessary services and redirect their outputs to separate log files:
+- `nohup.litellm.out`: LiteLLM server logs
+- `nohup.market_scan.out`: Market scanning process logs
+- `nohup.solve_instances.out`: Instance solving process logs
 
 ### Running Locally
 
-Run each process separately in different terminals:
-
-1. Start the market scanner:
+1. Start all services using the run script:
 ```bash
-python src/market_scan_process.py
+./run.sh
 ```
 
-2. Start the instance solver:
+The script handles starting all necessary processes and manages their log files.
+
+### Manual Process Control (Development)
+
+For development or debugging, you can run processes individually:
+
+1. Start the LiteLLM server:
 ```bash
-python src/solve_instances_process.py
+poetry run litellm --config litellm.config.yaml
 ```
 
-Each process runs independently and can be started/stopped without affecting the other.
+2. Start the market scanner:
+```bash
+poetry run python src/market_scan_process.py
+```
+
+3. Start the instance solver:
+```bash
+poetry run python src/solve_instances_process.py
+```
+
+Each process runs independently and can be started/stopped without affecting the others. Use Ctrl+C to gracefully stop any process.
 
 ## Project Structure
 
 ```
 ├── src/
-│   ├── aider_solver/      # AI-powered code modification
-│   ├── utils/             # Utility functions
-│   ├── market_scan.py     # Market scanning functionality
-│   ├── solve_instances.py # Instance solving logic
-│   ├── market_scan_process.py     # Market scanning process
-│   ├── solve_instances_process.py # Instance solving process
-│   ├── config.py         # Configuration settings
-│   └── enums.py          # Enumerations
-├── requirements.txt      # Python dependencies
-├── .env.template        # Environment variables template
-└── README.md           # This file
+│   ├── aider_solver/                # AI-powered code modification
+│   ├── utils/                       # Utility functions
+│   ├── market_scan.py              # Market scanning core functionality
+│   ├── solve_instances.py          # Instance solving core logic
+│   ├── market_scan_process.py      # Independent market scanning process
+│   ├── solve_instances_process.py   # Independent instance solving process
+│   ├── config.py                   # Configuration settings
+│   └── enums.py                    # Enumerations
+├── run.sh                          # Script to launch all services
+├── requirements.txt                # Python dependencies
+├── .env.template                   # Environment variables template
+└── README.md                       # Documentation
 ```
 
 ## Configuration
