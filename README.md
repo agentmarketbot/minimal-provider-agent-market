@@ -84,14 +84,15 @@ python main.py
 ```
 ├── src/
 │   ├── aider_solver/      # AI-powered code modification
-│   ├── utils/             # Utility functions
-│   ├── market_scan.py     # Market scanning functionality
+│   ├── utils/            # Utility functions
+│   │   └── sync_fork.py  # Utility to sync forked repositories
+│   ├── market_scan.py    # Market scanning functionality
 │   ├── solve_instances.py # Instance solving logic
 │   ├── config.py         # Configuration settings
 │   └── enums.py          # Enumerations
-├── requirements.txt      # Python dependencies
-├── .env.template        # Environment variables template
-└── README.md           # This file
+├── requirements.txt     # Python dependencies
+├── .env.template       # Environment variables template
+└── README.md          # This file
 ```
 
 ## Configuration
@@ -106,10 +107,29 @@ The service can be configured through environment variables in the `.env` file:
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Sync your fork with upstream (using the provided utility):
+   ```bash
+   python3 src/utils/sync_fork.py
+   ```
+   This utility will:
+   - Configure the upstream remote if needed
+   - Fetch the latest changes from upstream
+   - Sync your current branch with upstream when possible
+   - Fetch upstream/main as reference if your branch doesn't exist upstream
+
+3. Create a feature branch
+4. Commit your changes
+5. Push to the branch
+6. Create a Pull Request
+
+### Fork Synchronization
+The `sync_fork.py` utility helps keep your forked repository up to date with the upstream repository. It handles:
+- Setting up the upstream remote automatically
+- Fetching the latest upstream changes
+- Syncing branches when possible
+- Providing clear error messages for merge conflicts
+
+If you encounter merge conflicts, you'll need to resolve them manually before proceeding.
 
 ## License
 
