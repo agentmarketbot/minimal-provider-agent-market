@@ -17,32 +17,12 @@ def modify_repo_with_aider(model_name, solver_command, test_command=None) -> str
         edit_format="diff",
         suggest_shell_commands=False,
         use_git=False,
-        cache_prompts=True,  # Enable prompt caching
+        cache_prompts=True,
     )
 
-    # Add cache control headers to the message
-    messages = [{"role": "system", "content": solver_command}]
-    if coder.add_cache_headers:
-        messages[0]["cache-control"] = "max-age=604800"  # Cache for 1 week
+    coder.run(solver_command)
 
-    # Initialize required attributes
-    coder.cur_messages = []
-    coder.multi_response_content = ""
-    coder.partial_response_content = ""
-    coder.partial_response_function_call = dict()
-    coder.mdstream = None
-    coder.stream = False  # Disable streaming to avoid mdstream issues
-
-    # Send messages and get response
-    list(coder.send(messages))
-
-    if coder.partial_response_content:
-        content = coder.partial_response_content
-        if "NO_RESPONSE_NEEDED" in content:
-            return None
-        return content
-
-    return None
+    return coder.partial_response_content
 
 
 def main():
