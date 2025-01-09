@@ -1,11 +1,18 @@
-from typing import List
+from typing import Optional
 import git
 from loguru import logger
 import openai
-from .config import OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
+from src.config import SETTINGS
 
-def generate_commit_message(repo_path: str) -> str:
-    """Generate an informative commit message using AI based on the staged changes."""
+def generate_commit_message(repo_path: str) -> Optional[str]:
+    """Generate an informative commit message using AI based on the staged changes.
+    
+    Args:
+        repo_path: Path to the git repository
+        
+    Returns:
+        Optional[str]: Generated commit message or None if no changes are staged
+    """
     try:
         repo = git.Repo(repo_path)
         if not repo.is_dirty(untracked_files=True):
@@ -35,12 +42,12 @@ Format the message like this:
 
         # Get the commit message using OpenAI
         client = openai.OpenAI(
-            api_key=OPENAI_API_KEY,
-            base_url=OPENAI_BASE_URL
+            api_key=SETTINGS.litellm_api_key,
+            base_url=SETTINGS.litellm_api_base or "http://localhost:8000"
         )
 
         response = client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=str(SETTINGS.foundation_model_name),
             messages=[{"role": "user", "content": prompt}]
         )
         
