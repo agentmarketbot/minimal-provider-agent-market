@@ -7,6 +7,7 @@ from typing import Optional
 import git
 import github
 from loguru import logger
+from .commit_message import generate_commit_message
 
 
 def find_github_repo_url(text: str) -> Optional[str]:
@@ -36,7 +37,7 @@ def fork_repo(github_url: str, github_token: str) -> str:
     return forked_repo.clone_url
 
 
-def add_and_commit(repo_path: str, commit_message=None) -> None:
+def add_and_commit(repo_path: str) -> None:
     try:
         repo = git.Repo(repo_path)
         logger.info(f"Repository initialized at {repo_path}")
@@ -46,11 +47,9 @@ def add_and_commit(repo_path: str, commit_message=None) -> None:
             repo.git.add(A=True)
             logger.info("All changes staged successfully.")
 
+            commit_message = generate_commit_message(repo_path)
             if commit_message is None:
-                from .commit_message import generate_commit_message
-                commit_message = generate_commit_message(repo_path)
-                if commit_message is None:
-                    commit_message = "agent bot commit"  # Fallback if generation fails
+                commit_message = "agent bot commit"  # Fallback if generation fails
 
             repo.index.commit(commit_message)
             logger.info(f"Changes committed with message: '{commit_message}'")
