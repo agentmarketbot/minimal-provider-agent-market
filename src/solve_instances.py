@@ -117,6 +117,10 @@ def _solve_instance(
         logger.info(f"Cloning repository {forked_repo_url} to {repo_absolute_path}")
 
         utils.clone_repository(forked_repo_url, str(repo_absolute_path))
+        
+        # Sync fork with upstream before creating a new branch
+        utils.sync_fork_with_upstream(str(repo_absolute_path), settings.github_pat)
+        
         utils.create_and_push_branch(
             repo_absolute_path, instance_to_solve.instance["id"], settings.github_pat
         )

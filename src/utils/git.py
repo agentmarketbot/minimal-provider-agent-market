@@ -211,6 +211,83 @@ def extract_repo_name_from_url(repo_url: str) -> str:
     return f"{owner}/{repo}"
 
 
+def sync_fork_with_upstream(repo_path: str, github_token: str) -> bool:
+    """Sync a forked repository with its upstream repository.
+
+    Args:
+        repo_path: Path to the local repository
+        github_token: GitHub personal access token
+
+    Returns:
+        bool: True if sync was successful, False if no sync was needed
+    """
+    try:
+        repo = git.Repo(repo_path)
+        g = github.Github(github_token)
+
+        # Get the fork's remote URL
+        origin_url = repo.remotes.origin.url
+        repo_name = extract_repo_name_from_url(origin_url)
+        fork_repo = g.get_repo(repo_name)
+
+        # Get the parent (upstream) repository
+        parent_repo = fork_repo.parent
+        if not parent_repo:
+            logger.warning("This repository is not a fork")
+            return False
+
+        # Add upstream remote if it doesn't exist
+        upstream = None
+        try:
+            upstream = repo.remote('upstream')
+        except ValueError:
+            upstream_url = parent_repo.clone_url
+            upstream = repo.create_remote('upstream', upstream_url)
+            logger.info(f"Added upstream remote: {upstream_url}")
+
+        # Fetch from upstream
+        upstream.fetch()
+        logger.info("Fetched from upstream repository")
+
+        # Get current branch
+        current_branch = repo.active_branch.name
+        default_branch = parent_repo.default_branch
+
+        # If we're not on the default branch, switch to it
+        if current_branch != default_branch:
+            repo.heads[default_branch].checkout()
+            current_branch = default_branch
+            logger.info(f"Switched to {default_branch} branch")
+
+        # Check if we need to sync
+        upstream_commit = repo.refs[f'upstream/{current_branch}'].commit
+        local_commit = repo.heads[current_branch].commit
+        
+        if upstream_commit == local_commit:
+            logger.info("Fork is already up to date with upstream")
+            return False
+
+        # Merge upstream changes
+        repo.git.merge(f'upstream/{current_branch}')
+        logger.info(f"Merged upstream/{current_branch} into local {current_branch}")
+
+        # Push to origin
+        origin = repo.remote('origin')
+        origin_url = origin.url
+        if origin_url.startswith('https://'):
+            new_url = f'https://{github_token}@{origin_url.split("://")[1]}'
+            origin.set_url(new_url)
+        
+        origin.push()
+        logger.info("Pushed changes to origin")
+        
+        return True
+
+    except Exception as e:
+        logger.error(f"Error syncing fork with upstream: {e}")
+        raise
+
+
 def set_git_config(username: str, email: str, repo_dir: str):
     try:
         repo = git.Repo(repo_dir)
