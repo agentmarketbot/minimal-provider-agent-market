@@ -44,7 +44,7 @@ def _clean_logs(logs: str) -> str:
 
 
 def launch_container_with_repo_mounted(
-    timeout: int = 300,
+    timeout: int = 600,
     **kwargs,
 ) -> str:
     docker_client = docker_from_env()
