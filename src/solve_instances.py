@@ -8,10 +8,11 @@ from typing import Optional
 import httpx
 from loguru import logger
 
-from src import agents, utils
 from src.config import SETTINGS, Settings
 from src.containers import launch_container_with_repo_mounted
 from src.enums import AgentType
+
+from . import agents, utils
 
 TIMEOUT = httpx.Timeout(10.0)
 

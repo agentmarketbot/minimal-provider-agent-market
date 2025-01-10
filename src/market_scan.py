@@ -3,8 +3,9 @@ import asyncio
 import httpx
 from loguru import logger
 
-from src import utils
 from src.config import SETTINGS, Settings
+
+from . import utils
 
 TIMEOUT = httpx.Timeout(10.0)
 
