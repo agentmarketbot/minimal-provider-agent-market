@@ -58,11 +58,15 @@ class Settings(BaseSettings):
 
         if self.agent_type == AgentType.raaid:
             if self.litellm_docker_internal_api_base is None:
-                raise ValueError("litellm_api_base is required when agent_type is raaid")
+                raise ValueError(
+                    "litellm_docker_internal_api_base is required when agent_type is raaid"
+                )
 
         if self.provider == ProviderType.LITELLM:
             if self.litellm_docker_internal_api_base is None:
-                raise ValueError("litellm_api_base is required when provider is litellm")
+                raise ValueError(
+                    "litellm_docker_internal_api_base is required when provider is litellm"
+                )
 
         return self
 
