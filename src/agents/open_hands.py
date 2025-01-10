@@ -4,18 +4,8 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from src.config import SETTINGS
-from src.enums import ModelName
 
 load_dotenv()
-
-
-_MODEL_ALIAS_TO_MODEL: dict[ModelName, str] = {
-    ModelName.gpt_4o: "openai/gpt-4o",
-}
-
-_MODEL_ALIAS_TO_API_KEY_ENV_VAR_NAME: dict[ModelName, str] = {
-    ModelName.gpt_4o: "OPENAI_API_KEY",
-}
 
 _DOCKER_IMAGE = "docker.all-hands.dev/all-hands-ai/openhands:0.15"
 _RUNTIME_IMAGE = "docker.all-hands.dev/all-hands-ai/runtime:0.15-nikolaik"
@@ -25,7 +15,6 @@ _DOCKER_NETWORK_HOST = ["host.docker.internal:host-gateway"]
 def get_container_kwargs(
     repo_directory: str,
     solver_command: str,
-    model_name: ModelName,
 ) -> str:
     solver_command += (
         "\n\n=== SYSTEM REQUIREMENTS ===\n"
@@ -41,8 +30,8 @@ def get_container_kwargs(
         "GITHUB_USERNAME": SETTINGS.github_username,
         "GITHUB_EMAIL": SETTINGS.github_email,
         "WORKSPACE_MOUNT_PATH": repo_directory,
-        "LLM_API_KEY": os.getenv(_MODEL_ALIAS_TO_API_KEY_ENV_VAR_NAME[model_name]),
-        "LLM_MODEL": _MODEL_ALIAS_TO_MODEL.get(model_name, model_name.value),
+        "LLM_API_KEY": SETTINGS.openai_api_key,
+        "LLM_MODEL": "openai/gpt-4o",
         "LOG_ALL_EVENTS": "true",
         "GIT_ASKPASS": "echo",
         "GIT_TERMINAL_PROMPT": "0",
