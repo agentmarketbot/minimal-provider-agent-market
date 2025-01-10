@@ -73,11 +73,9 @@ def push_commits(repo_path: str, github_token: str) -> bool:
         current_branch = repo.active_branch.name
 
         remote_url = repo.remotes.origin.url.rstrip("/")
-        logger.info(f"Remote URL: {remote_url}")
         if "github.com/" in remote_url:
             repo_part = remote_url.split("github.com/")[-1]
             remote_url = f"https://{github_token}@github.com/{repo_part}"
-            logger.info(f"New remote URL: {remote_url}")
             repo.remotes.origin.set_url(remote_url)
 
         logger.info("Fetching remote changes")
@@ -365,7 +363,6 @@ def create_and_push_branch(repo_path: str, branch_name: str, github_token: str) 
         if branch_name in remote_branches:
             logger.warning(f"Branch '{branch_name}' already exists on the remote.")
         else:
-            origin.set_url(f"https://{github_token}@{remote_url.split('://')[-1]}")
             origin.push(refspec=f"{branch_name}:{branch_name}", set_upstream=True)
             logger.info(f"Branch '{branch_name}' pushed to remote and set upstream.")
 
