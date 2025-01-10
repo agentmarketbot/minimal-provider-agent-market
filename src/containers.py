@@ -61,6 +61,7 @@ def launch_container_with_repo_mounted(
         logger.info(f"Waiting for container to finish (timeout: {timeout}s)")
         result = container.wait(timeout=timeout)
 
+        logger.info(f"Container exited with status code: {result['StatusCode']}")
         if result["StatusCode"] != 0:
             raise Exception(f"Container exited with non-zero status code: {result['StatusCode']}")
 
