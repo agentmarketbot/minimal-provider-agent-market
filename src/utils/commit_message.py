@@ -49,7 +49,7 @@ Format the message like this:
         )
 
         response = client.chat.completions.create(
-            model=str(SETTINGS.foundation_model_name),
+            model=SETTINGS.foundation_model_name.value,
             messages=[{"role": "user", "content": prompt}],
         )
 
