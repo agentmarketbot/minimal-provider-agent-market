@@ -74,7 +74,7 @@ def push_commits(repo_path: str, github_token: str) -> bool:
 
         remote_url = repo.remotes.origin.url.rstrip("/")
         logger.info(f"Remote URL: {remote_url}")
-        if remote_url.startswith("https://github.com/"):
+        if "github.com/" in remote_url:
             repo_part = remote_url.split("github.com/")[-1]
             remote_url = f"https://{github_token}@github.com/{repo_part}"
             logger.info(f"New remote URL: {remote_url}")
