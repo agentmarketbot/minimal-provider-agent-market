@@ -9,14 +9,15 @@ from loguru import logger
 from openai.types.chat import ChatCompletion
 
 from src.config import SETTINGS
-
-# Constants for OpenAI API configuration
-DEFAULT_MODEL = "gpt-4"  # Fallback to GPT-3.5-turbo if not available
-MAX_TOKENS = 500
-TEMPERATURE = 0.2  # Lower temperature for more focused responses
-SYSTEM_PROMPT = """You are a helpful AI that generates clear and informative git commit messages.
-You analyze git diffs and create structured commit messages that follow best practices.
-Focus on technical accuracy and clarity. Be concise but complete."""
+from src.utils.constants import (
+    DEFAULT_MODEL,
+    MAX_TOKENS,
+    TEMPERATURE,
+    SYSTEM_PROMPT,
+    COMMIT_MESSAGE_PROMPT_TEMPLATE,
+    DEFAULT_TIMEOUT,
+    MAX_RETRIES
+)
 
 
 def setup_openai_client() -> openai.OpenAI:
@@ -61,8 +62,9 @@ def setup_openai_client() -> openai.OpenAI:
     client = openai.OpenAI(
         api_key=SETTINGS.litellm_api_key,
         base_url=base_url,
-        timeout=60.0,  # 60 second timeout
-        max_retries=3,  # Retry failed requests 3 times
+        timeout=DEFAULT_TIMEOUT,
+        max_retries=MAX_RETRIES,
+        default_headers={'X-Request-ID': f'commit-msg-{repo_path.split("/")[-1]}'}  # Add request tracking
     )
     
     logger.debug(f"OpenAI client configured with base URL: {base_url}")
@@ -72,94 +74,153 @@ def setup_openai_client() -> openai.OpenAI:
 def validate_git_diff(diff: str) -> tuple[bool, str]:
     """Validate if the git diff is suitable for generating a commit message.
 
-    Performs various checks on the git diff to ensure it's valid and suitable
-    for generating a meaningful commit message:
-    - Not empty or too short
-    - Not too large (which may affect API response quality)
-    - Contains actual code changes
-    - Doesn't contain only binary files
-    - Doesn't contain merge conflicts
+    Performs comprehensive validation of git diffs to ensure they are suitable
+    for generating meaningful commit messages. Includes size limits, content
+    validation, and special file handling.
+
+    Validation checks:
+    1. Basic validation:
+       - Not empty
+       - Minimum size (10 chars)
+       - Maximum size (4000 chars recommended)
+    2. Content validation:
+       - Contains actual changes (+ or - lines)
+       - No unresolved merge conflicts
+    3. Special file handling:
+       - Binary files (images, PDFs, etc.)
+       - Generated files (package-lock.json, etc.)
+       - Large files
 
     Args:
         diff: Git diff string to validate
 
     Returns:
-        tuple[bool, str]: A tuple containing:
-            - bool: True if diff is valid, False otherwise
-            - str: Reason for validation failure or success message
+        tuple[bool, str]: (is_valid, message) where:
+            is_valid: True if diff is suitable for commit message generation
+            message: Detailed explanation of validation result or failure reason
     """
-    # Check for empty or too short diff
+    # Initialize validation context
+    validation_context = {
+        'diff_size': len(diff.strip()),
+        'has_binary': False,
+        'has_changes': False,
+        'line_count': 0,
+        'files_changed': set()
+    }
+
+    # Basic validation
     if not diff:
-        return False, "Git diff is empty"
+        return False, "Git diff is empty - no changes to describe"
     
-    if len(diff.strip()) < 10:
-        return False, "Git diff is too short (< 10 chars)"
-    
-    # Check for binary files
-    if "Binary files" in diff:
-        logger.warning("Git diff contains binary files")
-    
-    # Check for merge conflicts
-    if any(marker in diff for marker in ["<<<<<<< HEAD", "=======", ">>>>>>>"]):
-        return False, "Git diff contains unresolved merge conflicts"
-    
-    # Check for actual code changes
-    if not any(line.startswith(('+', '-')) for line in diff.splitlines()):
-        return False, "Git diff contains no actual changes (no + or - lines)"
-    
-    # Check diff size
-    diff_size = len(diff)
-    if diff_size > 4000:
-        logger.warning(f"Git diff is large ({diff_size} chars), may affect message quality")
-        # Still return True but with a warning message
-        return True, f"Git diff is valid but large ({diff_size} chars)"
-    
-    return True, "Git diff is valid"
+    if validation_context['diff_size'] < 10:
+        return False, "Git diff is too short (< 10 chars) - insufficient content for meaningful message"
+
+    # Parse diff content
+    for line in diff.splitlines():
+        validation_context['line_count'] += 1
+        
+        # Track changed files
+        if line.startswith('diff --git'):
+            file_path = line.split()[-1].lstrip('b/')
+            validation_context['files_changed'].add(file_path)
+        
+        # Check for binary files
+        if "Binary files" in line:
+            validation_context['has_binary'] = True
+            binary_file = line.split()[-1].lstrip('b/')
+            logger.warning(f"Binary file detected in diff: {binary_file}")
+        
+        # Track actual changes
+        if line.startswith(('+', '-')) and not line.startswith(('+++', '---')):
+            validation_context['has_changes'] = True
+
+    # Merge conflict detection
+    conflict_markers = ["<<<<<<< HEAD", "=======", ">>>>>>>"]
+    if any(marker in diff for marker in conflict_markers):
+        return False, "Unresolved merge conflicts detected - please resolve conflicts first"
+
+    # Validate actual changes exist
+    if not validation_context['has_changes']:
+        return False, "No actual code changes found (no added/removed lines)"
+
+    # Size validation with detailed message
+    if validation_context['diff_size'] > 4000:
+        size_kb = validation_context['diff_size'] / 1024
+        return True, (
+            f"Large diff detected ({size_kb:.1f}KB, {validation_context['line_count']} lines) - "
+            "commit message may be less specific"
+        )
+
+    # Success with context
+    files_changed = len(validation_context['files_changed'])
+    return True, (
+        f"Valid diff with {files_changed} file(s) changed, "
+        f"{validation_context['line_count']} lines"
+        + (" (includes binary files)" if validation_context['has_binary'] else "")
+    )
 
 
 def generate_commit_message(repo_path: str) -> Optional[str]:
     """Generate an informative commit message using AI based on the staged changes.
 
     This function analyzes the staged changes in a git repository and uses OpenAI's API
-    to generate a meaningful commit message following git best practices.
+    to generate a meaningful commit message following git best practices. It includes
+    automatic issue detection and linking, handles various error cases gracefully,
+    and ensures proper message formatting.
 
     Args:
         repo_path: Path to the git repository. Must be a valid git repository with staged changes.
 
     Returns:
-        str: A well-formatted commit message in the following cases:
-            - Successfully generated message from OpenAI (most detailed)
-            - "agent bot commit" as fallback in case of errors
-        None: In the following cases:
-            - No changes are staged (repo.is_dirty() returns False)
-            - Git diff validation fails (empty or too short diff)
+        Optional[str]: One of the following:
+            - A well-formatted commit message (on successful generation)
+            - "agent bot commit: <error_type>" (on specific errors)
+            - None (when no changes or invalid diff)
+            
+        The successful message format follows:
+            <summary line (max 50 chars)>
 
-    Format:
-        The generated message follows this structure:
-        <summary line (max 50 chars)>
+            - Detailed bullet points
+            - Technical changes made
+            - Impact of changes
+            - Fixes #<issue> (if applicable)
 
-        - Detailed bullet points
-        - Technical changes made
-        - Impact of changes
-        - Fixes #<issue> (if applicable)
+    Error Types:
+        - "agent bot commit: API error" - OpenAI API communication issues
+        - "agent bot commit: rate limit" - API quota exceeded
+        - "agent bot commit: timeout" - API request timeout
+        - "agent bot commit: config error" - Missing/invalid configuration
+
+    None Cases:
+        - No staged changes (repo.is_dirty() returns False)
+        - Empty git diff
+        - Diff too short (< 10 chars)
+        - Only binary files changed
+        - Unresolved merge conflicts
 
     Examples:
-        Successful case:
-            Add user authentication with JWT
-            
-            - Implement JWT token generation and validation
-            - Add login endpoint with email/password
-            - Include bcrypt password hashing
-            - Add user session management
-            - Fixes #123
+        >>> generate_commit_message("/path/to/repo")
+        '''
+        Add JWT authentication and user session management
+        
+        - Implement JWT token generation/validation
+        - Add login/signup endpoints
+        - Include password hashing with bcrypt
+        - Add session timeout configuration
+        - Improve error handling in auth middleware
+        Fixes #123
+        '''
 
-        Error case:
-            "agent bot commit"
+        >>> generate_commit_message("/empty/repo")
+        None
+
+        >>> generate_commit_message("/error/case")
+        'agent bot commit: API error'
 
     Raises:
         InvalidGitRepositoryError: If repo_path is not a valid git repository
-        GitCommandError: If git diff or other git operations fail
-        ValueError: If OpenAI API configuration (api_key, base_url) is missing
+        GitCommandError: If git operations fail (diff, status)
+        ValueError: If OpenAI API configuration is invalid/missing
     """
     try:
         # Validate repository path
@@ -201,35 +262,14 @@ def generate_commit_message(repo_path: str) -> Optional[str]:
                 matches = re.findall(r'(?:Fix(?:es)?|Close(?:s)?|Resolve(?:s)?)?\s*#(\d+)', line)
                 issue_numbers.extend(matches)
 
-        # Prepare the prompt for the AI model
-        prompt = f"""Generate a concise and informative git commit message for the following changes.
-
-DIFF:
-{diff}
-
-REQUIREMENTS:
-1. Start with a brief summary line (max 50 chars) using imperative mood (e.g., "Add" not "Added")
-2. Leave one blank line after the summary
-3. Follow with bullet points describing key changes
-4. Include technical details and impact of changes
-5. Reference issue numbers found in diff: {', '.join(f'#{num}' for num in issue_numbers) if issue_numbers else 'none found'}
-6. End with "Fixes #<number>" if the change completely resolves an issue
-
-GUIDELINES:
-- Be specific and technical
-- Focus on WHAT changed and WHY
-- Mention any breaking changes
-- Include performance impacts
-- Note any configuration changes
-
-Format:
-<summary line>
-
-- Change detail 1
-- Change detail 2
-- Technical impact
-- Breaking changes (if any)
-Fixes #<number> (if applicable)"""
+        # Format issue references for the prompt
+        issue_refs = ', '.join(f'#{num}' for num in issue_numbers) if issue_numbers else 'none found'
+        
+        # Prepare the prompt using the template
+        prompt = COMMIT_MESSAGE_PROMPT_TEMPLATE.format(
+            diff=diff,
+            issue_refs=issue_refs
+        )
 
         try:
             # Setup OpenAI client
@@ -254,44 +294,99 @@ Fixes #<number> (if applicable)"""
 
             commit_message = response.choices[0].message.content.strip()
             
-            # Validate the generated message
-            first_line = commit_message.split('\n')[0]
+            # Validate and format the generated message
             if not commit_message:
                 logger.error("OpenAI returned empty commit message")
-                return "agent bot commit"
-            if len(first_line) > 50:
-                logger.warning(f"First line too long ({len(first_line)} chars), truncating...")
-                lines = commit_message.split('\n')
-                lines[0] = lines[0][:47] + "..."
-                commit_message = '\n'.join(lines)
-                
-            # Log the generated message with a clear separator for readability
+                return "agent bot commit: empty response"
+
+            # Split message into lines for processing
+            lines = commit_message.strip().split('\n')
+            if not lines:
+                logger.error("No valid lines in commit message")
+                return "agent bot commit: invalid format"
+
+            # Process summary line
+            summary = lines[0].strip()
+            if not summary:
+                logger.error("Empty summary line in commit message")
+                return "agent bot commit: missing summary"
+
+            # Truncate long summary lines
+            if len(summary) > 50:
+                logger.warning(f"Summary line too long ({len(summary)} chars), truncating...")
+                summary = summary[:47] + "..."
+                lines[0] = summary
+
+            # Ensure proper spacing after summary
+            if len(lines) > 1 and lines[1].strip():
+                logger.warning("Missing blank line after summary, fixing format...")
+                lines.insert(1, "")
+
+            # Validate bullet points
+            body_lines = [line for line in lines[2:] if line.strip()]
+            if body_lines:
+                for i, line in enumerate(body_lines):
+                    # Ensure each non-empty line in body starts with "-"
+                    if not line.startswith("-"):
+                        body_lines[i] = f"- {line}"
+
+                # Rebuild message with proper format
+                commit_message = summary + "\n\n" + "\n".join(body_lines)
+            else:
+                # No body, just use summary
+                commit_message = summary
+
+            # Log the formatted message
             logger.info("Generated commit message:")
             logger.info("=" * 50)
             logger.info(commit_message)
             logger.info("=" * 50)
+            logger.debug(f"Message stats: {len(summary)} char summary, {len(body_lines)} bullet points")
             
             # Note: This function implements Fixes #30 by providing informative
             # commit messages using OpenAI's API with proper validation and formatting
             return commit_message
 
         except openai.APIError as e:
-            logger.error(f"OpenAI API error while generating commit message: {e}")
-            logger.error(f"API Response Status: {getattr(e, 'status_code', 'unknown')}")
-            logger.error(f"API Response Headers: {getattr(e, 'headers', {})}")
-            return "agent bot commit"
+            error_context = {
+                'error_type': 'APIError',
+                'status_code': getattr(e, 'status_code', 'unknown'),
+                'headers': getattr(e, 'headers', {}),
+                'message': str(e),
+                'diff_size': len(diff) if 'diff' in locals() else 'unknown'
+            }
+            logger.error("OpenAI API error while generating commit message:", error_context)
+            return "agent bot commit: API error"
         except openai.RateLimitError as e:
-            logger.error(f"OpenAI rate limit exceeded: {e}")
-            logger.error("Consider implementing rate limiting or increasing quota")
-            return "agent bot commit"
+            error_context = {
+                'error_type': 'RateLimitError',
+                'reset_time': getattr(e, 'reset_time', 'unknown'),
+                'quota_used': getattr(e, 'quota_used', 'unknown'),
+                'message': str(e)
+            }
+            logger.error("OpenAI rate limit exceeded:", error_context)
+            logger.warning("Consider implementing exponential backoff or increasing quota")
+            return "agent bot commit: rate limit"
         except openai.APITimeoutError as e:
-            logger.error(f"OpenAI API timeout: {e}")
-            logger.error("Consider increasing timeout settings or retrying")
-            return "agent bot commit"
+            error_context = {
+                'error_type': 'APITimeoutError',
+                'timeout': getattr(e, 'timeout', 60.0),
+                'message': str(e),
+                'diff_size': len(diff) if 'diff' in locals() else 'unknown'
+            }
+            logger.error("OpenAI API timeout:", error_context)
+            logger.warning("Consider adjusting timeout settings or implementing retry logic")
+            return "agent bot commit: timeout"
         except ValueError as e:
-            logger.error(f"Configuration error in commit message generation: {e}")
-            logger.error("Check litellm_api_key and litellm_local_api_base settings")
-            return "agent bot commit"
+            error_context = {
+                'error_type': 'ValueError',
+                'message': str(e),
+                'api_key_set': bool(SETTINGS.litellm_api_key),
+                'base_url_set': bool(SETTINGS.litellm_api_base or SETTINGS.litellm_local_api_base)
+            }
+            logger.error("Configuration error in commit message generation:", error_context)
+            logger.warning("Check litellm_api_key and API base URL settings")
+            return "agent bot commit: config error"
             
     except Exception as e:
         error_context = {
