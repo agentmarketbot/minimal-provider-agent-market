@@ -14,11 +14,11 @@ sleep 15
 
 # Start market scan process
 echo "Starting market scan process..."
-nohup poetry run python src/market_scan_process.py > nohup.market_scan.out 2>&1 &
+nohup poetry run python -m src.market_scan_process > nohup.market_scan.out 2>&1 &
 
 # Start solve instances process
 echo "Starting solve instances process..."
-nohup poetry run python src/solve_instances_process.py > nohup.solve_instances.out 2>&1 &
+nohup poetry run python -m src.solve_instances_process > nohup.solve_instances.out 2>&1 &
 
 echo "All services started. Check the following log files:"
 echo "- nohup.litellm.out for LiteLLM logs"

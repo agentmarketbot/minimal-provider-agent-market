@@ -2,9 +2,10 @@
 
 import sys
 import time
+
 from loguru import logger
 
-from market_scan import market_scan_handler
+from src.market_scan import market_scan_handler
 
 
 def main() -> None:

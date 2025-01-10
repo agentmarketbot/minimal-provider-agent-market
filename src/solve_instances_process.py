@@ -2,9 +2,10 @@
 
 import sys
 import time
+
 from loguru import logger
 
-from solve_instances import solve_instances_handler
+from src.solve_instances import solve_instances_handler
 
 
 def main() -> None:
