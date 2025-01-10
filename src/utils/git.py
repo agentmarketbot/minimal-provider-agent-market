@@ -86,7 +86,7 @@ def push_commits(repo_path: str, github_token: str) -> bool:
         logger.info("Changes pushed to remote.")
         return True
     except Exception as e:
-        logger.error(f"Error pushing changes: {e}")
+        logger.error(f"Error pushing changes: {e}", exc_info=True)
         raise
 
 
