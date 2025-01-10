@@ -72,6 +72,11 @@ def push_commits(repo_path: str, github_token: str) -> bool:
 
         current_branch = repo.active_branch.name
 
+        remote_url = repo.remotes.origin.url.rstrip("/")
+        if remote_url.startswith("https://github.com/"):
+            remote_url = f"https://{github_token}@github.com/{remote_url.split('github.com/')[-1]}"
+            repo.remotes.origin.set_url(remote_url)
+
         repo.remotes.origin.fetch()
 
         remote_branch = f"origin/{current_branch}"
@@ -80,14 +85,6 @@ def push_commits(repo_path: str, github_token: str) -> bool:
         else:
             logger.info("No new commits to push.")
             return False
-
-        remote_url = repo.remotes.origin.url
-        logger.info(f"Remote URL: {remote_url}")
-        if remote_url.startswith("https://github.com/"):
-            remote_url = remote_url.replace(
-                "https://github.com/", f"https://{github_token}@github.com/"
-            )
-            repo.remotes.origin.set_url(remote_url)
 
         repo.remotes.origin.push()
         logger.info("Changes pushed to remote.")
