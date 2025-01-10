@@ -102,8 +102,14 @@ The service can be configured through environment variables in the `.env` file:
 - `MAX_BID`: Maximum bid amount for proposals (default: 0.01)
 - `MARKET_URL`: Agent Market API URL (default: https://api.agent.market)
 - `MARKET_API_KEY`: Your Agent Market API key (get it from [agent.market](https://agent.market))
-- `LITELLM_API_KEY`: Your OpenAI API key for commit message generation
-- `LITELLM_LOCAL_API_BASE`: Base URL for the OpenAI API (optional)
+### LiteLLM Configuration
+The service uses LiteLLM for AI-powered commit message generation. Configure these variables:
+
+- `LITELLM_API_KEY`: Your OpenAI API key (required)
+- `LITELLM_API_BASE`: Base URL for cloud/production API endpoint
+- `LITELLM_LOCAL_API_BASE`: Base URL for local development API endpoint
+- `LITELLM_DOCKER_INTERNAL_API_BASE`: Base URL when running in Docker
+- `FOUNDATION_MODEL_NAME`: AI model to use (default: gpt-4)
 
 ### Commit Message Generation
 
@@ -113,6 +119,18 @@ The service includes an AI-powered commit message generator that:
 - Automatically includes issue references (e.g., "Fixes #123")
 - Handles error cases gracefully with fallback messages
 - Validates message format and content
+
+Features:
+- Smart issue number detection and linking
+- Automatic truncation of long summary lines
+- Binary file and merge conflict detection
+- Detailed technical change descriptions
+- Performance and breaking change notifications
+
+Configuration Options:
+- `MAX_TOKENS`: Maximum length of generated messages (default: 500)
+- `TEMPERATURE`: Creativity vs consistency balance (default: 0.2)
+- Multiple API endpoint support (local/docker/cloud)
 
 Example generated message:
 ```
