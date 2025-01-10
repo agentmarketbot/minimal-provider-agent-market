@@ -83,5 +83,13 @@ class Settings(BaseSettings):
 
         return cls()
 
+    def __str__(self) -> str:
+        """Custom string representation to avoid leaking sensitive information."""
+        return "Settings(***)"
+
+    def __repr__(self) -> str:
+        """Custom repr to avoid leaking sensitive information."""
+        return self.__str__()
+
 
 SETTINGS = Settings.load_settings()
