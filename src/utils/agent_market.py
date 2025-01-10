@@ -72,4 +72,12 @@ def remove_all_urls(text: str) -> str:
 
 
 def format_messages(messages: list[dict]) -> str:
+    """Format a list of message dictionaries into a single string.
+
+    Args:
+        messages: List of dicts containing message data
+
+    Returns:
+        String with all messages joined by newlines
+    """
     return "\n".join([m["message"] for m in messages])
