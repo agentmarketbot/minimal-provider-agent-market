@@ -8,6 +8,8 @@ import git
 import github
 from loguru import logger
 
+from .commit_message import generate_commit_message
+
 
 def find_github_repo_url(text: str) -> Optional[str]:
     pattern = r"https://github.com/[^\s]+"
@@ -36,15 +38,19 @@ def fork_repo(github_url: str, github_token: str) -> str:
     return forked_repo.clone_url
 
 
-def add_and_commit(repo_path: str, commit_message="agent bot commit") -> None:
+def add_and_commit(repo_path: str) -> None:
     try:
         repo = git.Repo(repo_path)
         logger.info(f"Repository initialized at {repo_path}")
 
         if repo.is_dirty(untracked_files=True):
-            logger.info(f"Repository is dirty. Staging all changes.")
+            logger.info("Repository is dirty. Staging all changes.")
             repo.git.add(A=True)
             logger.info("All changes staged successfully.")
+
+            commit_message = generate_commit_message(repo_path)
+            if commit_message is None:
+                commit_message = "agent bot commit"  # Fallback if generation fails
 
             repo.index.commit(commit_message)
             logger.info(f"Changes committed with message: '{commit_message}'")
@@ -225,8 +231,80 @@ def set_git_config(username: str, email: str, repo_dir: str):
         raise
 
 
-def create_and_push_branch(repo_path, branch_name, github_token):
+def sync_fork_with_upstream(repo_path: str, github_token: str) -> None:
+    """Sync a forked repository with its upstream (original) repository.
+    
+    Args:
+        repo_path: Path to the local repository
+        github_token: GitHub personal access token
+    """
     try:
+        repo = git.Repo(repo_path)
+        
+        # Get the remote URL and extract owner/repo
+        origin_url = repo.remotes.origin.url
+        if origin_url.startswith("https://"):
+            repo_path_str = origin_url.split("github.com/")[-1].removesuffix(".git")
+        elif origin_url.startswith("git@"):
+            repo_path_str = origin_url.split(":")[-1].removesuffix(".git")
+        else:
+            raise ValueError("Unrecognized remote URL format")
+            
+        # Connect to GitHub API
+        g = github.Github(github_token)
+        fork_repo = g.get_repo(repo_path_str)
+        
+        # Get the parent (upstream) repository
+        parent_repo = fork_repo.parent
+        if not parent_repo:
+            logger.info("This repository is not a fork")
+            return
+            
+        # Add upstream remote if it doesn't exist
+        upstream_url = parent_repo.clone_url
+        try:
+            upstream = repo.remote("upstream")
+            if upstream.url != upstream_url:
+                upstream.set_url(upstream_url)
+        except ValueError:
+            upstream = repo.create_remote("upstream", upstream_url)
+            
+        # Fetch from upstream
+        upstream.fetch()
+        logger.info("Fetched latest changes from upstream repository")
+        
+        # Get default branch (usually main or master)
+        default_branch = parent_repo.default_branch
+        
+        # Sync fork with upstream
+        repo.git.checkout(default_branch)
+        repo.git.merge(f"upstream/{default_branch}")
+        logger.info(f"Merged upstream/{default_branch} into local {default_branch}")
+        
+        # Push to origin
+        if origin_url.startswith("https://"):
+            new_origin_url = f"https://{github_token}@{origin_url.split('://')[-1]}"
+            repo.remotes.origin.set_url(new_origin_url)
+        
+        repo.remotes.origin.push(default_branch)
+        logger.info(f"Pushed synced {default_branch} to origin")
+        
+    except Exception as e:
+        logger.error(f"Error syncing fork with upstream: {e}")
+        raise
+
+def create_and_push_branch(repo_path: str, branch_name: str, github_token: str) -> None:
+    """Create and push a new branch, ensuring the fork is synced with upstream first.
+    
+    Args:
+        repo_path: Path to the local repository
+        branch_name: Name of the branch to create
+        github_token: GitHub personal access token
+    """
+    try:
+        # First sync the fork with upstream
+        sync_fork_with_upstream(repo_path, github_token)
+        
         repo = git.Repo(repo_path)
         repo.remotes.origin.fetch()
         logger.info(f"Repository initialized and fetched at {repo_path}")

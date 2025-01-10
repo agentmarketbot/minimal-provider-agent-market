@@ -20,7 +20,7 @@ def get_container_kwargs(
     ]
 
     env_vars = {
-        "OPENAI_API_BASE": SETTINGS.litellm_api_base,
+        "OPENAI_API_BASE": SETTINGS.litellm_docker_internal_api_base,
         "OPENAI_API_KEY": SETTINGS.litellm_api_key,
     }
 
