@@ -23,7 +23,7 @@ _RUNTIME_IMAGE = "docker.all-hands.dev/all-hands-ai/runtime:0.18-nikolaik"
 _DOCKER_NETWORK_HOST = ["host.docker.internal:host-gateway"]
 _PROVIDER_CONFIGS: dict[ProviderType, dict[str, str]] = {
     ProviderType.LITELLM: {
-        "LLM_BASE_URL": SETTINGS.litellm_api_base,
+        "LLM_BASE_URL": SETTINGS.litellm_docker_internal_api_base,
         "LLM_API_KEY": SETTINGS.litellm_api_key,
     },
     ProviderType.OPENAI: {

@@ -7,6 +7,7 @@ from typing import Optional
 import git
 import github
 from loguru import logger
+
 from .commit_message import generate_commit_message
 
 
@@ -43,7 +44,7 @@ def add_and_commit(repo_path: str) -> None:
         logger.info(f"Repository initialized at {repo_path}")
 
         if repo.is_dirty(untracked_files=True):
-            logger.info(f"Repository is dirty. Staging all changes.")
+            logger.info("Repository is dirty. Staging all changes.")
             repo.git.add(A=True)
             logger.info("All changes staged successfully.")
 

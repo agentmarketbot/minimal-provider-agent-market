@@ -40,7 +40,12 @@ class Settings(BaseSettings):
         default=ProviderType.OPENAI, description="The provider to use (openai or litellm)"
     )
     litellm_api_key: str = Field("dummy", description="The API key for LiteLLM proxy")
-    litellm_api_base: str | None = Field(None, description="The base URL for the LiteLLM proxy")
+    litellm_docker_internal_api_base: str | None = Field(
+        None, description="The Docker internal API base for LiteLLM"
+    )
+    litellm_local_api_base: str = Field(
+        "http://0.0.0.0:4000", description="The local API base for LiteLLM"
+    )
 
     class Config:
         case_sensitive = False
@@ -52,11 +57,11 @@ class Settings(BaseSettings):
                 raise ValueError("foundation_model_name is required when agent_type is not raaid")
 
         if self.agent_type == AgentType.raaid:
-            if self.litellm_api_base is None:
+            if self.litellm_docker_internal_api_base is None:
                 raise ValueError("litellm_api_base is required when agent_type is raaid")
 
         if self.provider == ProviderType.LITELLM:
-            if self.litellm_api_base is None:
+            if self.litellm_docker_internal_api_base is None:
                 raise ValueError("litellm_api_base is required when provider is litellm")
 
         return self
