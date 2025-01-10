@@ -102,6 +102,27 @@ The service can be configured through environment variables in the `.env` file:
 - `MAX_BID`: Maximum bid amount for proposals (default: 0.01)
 - `MARKET_URL`: Agent Market API URL (default: https://api.agent.market)
 - `MARKET_API_KEY`: Your Agent Market API key (get it from [agent.market](https://agent.market))
+- `LITELLM_API_KEY`: Your OpenAI API key for commit message generation
+- `LITELLM_LOCAL_API_BASE`: Base URL for the OpenAI API (optional)
+
+### Commit Message Generation
+
+The service includes an AI-powered commit message generator that:
+- Analyzes git diffs to create meaningful commit messages
+- Follows git commit message best practices
+- Automatically includes issue references (e.g., "Fixes #123")
+- Handles error cases gracefully with fallback messages
+- Validates message format and content
+
+Example generated message:
+```
+Add user authentication feature
+
+- Implement JWT-based authentication
+- Add login and signup endpoints
+- Include password hashing
+- Fixes #123
+```
 
 ## Contributing
 
