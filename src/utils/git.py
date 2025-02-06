@@ -21,12 +21,18 @@ def find_github_repo_url(text: str) -> Optional[str]:
     return None
 
 
-def clone_repository(repo_url: str, target_dir: str) -> None:
+def clone_repository(repo_url: str, target_dir: str, github_token: str = None) -> None:
     if os.path.exists(target_dir):
         shutil.rmtree(target_dir)
 
     os.makedirs(target_dir)
-    git.Repo.clone_from(repo_url, target_dir)
+
+    if github_token and repo_url.startswith("https://"):
+        auth_url = f"https://{github_token}@github.com/{repo_url.split('github.com/')[-1]}"
+    else:
+        auth_url = repo_url
+
+    git.Repo.clone_from(auth_url, target_dir)
     logger.info(f"Cloned repository from {repo_url} to {target_dir}")
 
 

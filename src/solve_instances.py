@@ -116,7 +116,7 @@ def _solve_instance(
         repo_absolute_path = Path(temp_dir)
         logger.info(f"Cloning repository {forked_repo_url} to {repo_absolute_path}")
 
-        utils.clone_repository(forked_repo_url, str(repo_absolute_path))
+        utils.clone_repository(forked_repo_url, str(repo_absolute_path), settings.github_pat)
         utils.create_and_push_branch(
             repo_absolute_path, instance_to_solve.instance["id"], settings.github_pat
         )
