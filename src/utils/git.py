@@ -6,6 +6,8 @@ from typing import Optional
 
 import git
 import github
+import httpx
+import tenacity
 from loguru import logger
 
 from .commit_message import generate_commit_message
@@ -576,3 +578,63 @@ def get_pr_url(chat_text: str) -> Optional[str]:
     if match:
         return match.group(0)
     return None
+
+
+def retry_if_transient_error(exception):
+    return isinstance(
+        exception, (httpx.NetworkError, httpx.TimeoutException, httpx.HTTPStatusError)
+    ) and (
+        getattr(exception, "response", None) is None
+        or exception.response.status_code
+        in {
+            httpx.codes.TOO_MANY_REQUESTS,  # 429
+            httpx.codes.INTERNAL_SERVER_ERROR,  # 500
+            httpx.codes.BAD_GATEWAY,  # 502
+            httpx.codes.SERVICE_UNAVAILABLE,  # 503
+            httpx.codes.GATEWAY_TIMEOUT,  # 504
+        }
+    )
+
+
+@tenacity.retry(
+    retry=tenacity.retry_if_exception(retry_if_transient_error),
+    wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
+    stop=tenacity.stop_after_attempt(3),
+    before_sleep=lambda retry_state: logger.warning(
+        f"Attempt {retry_state.attempt_number} failed. "
+        f"Retrying in {retry_state.next_action.sleep} seconds..."
+    ),
+)
+async def make_github_request(client, method, url, headers):
+    request_method = getattr(client, method)
+    response = await request_method(url, headers=headers)
+    response.raise_for_status()
+    return response
+
+
+async def accept_repo_invitations(pat_token):
+    api_url = "https://api.github.com"
+    headers = {"Authorization": f"token {pat_token}", "Accept": "application/vnd.github.v3+json"}
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            invitations_url = f"{api_url}/user/repository_invitations"
+            response = await make_github_request(client, "get", invitations_url, headers)
+            invitations = response.json()
+
+            if not invitations:
+                logger.info("No pending repository invitations found.")
+                return
+
+            for invitation in invitations:
+                invitation_id = invitation["id"]
+                repo_name = invitation["repository"]["full_name"]
+
+                accept_url = f"{api_url}/user/repository_invitations/{invitation_id}"
+                await make_github_request(client, "patch", accept_url, headers)
+                logger.info(f"Successfully accepted invitation for repository: {repo_name}")
+
+        except tenacity.RetryError as e:
+            logger.error(f"Failed after multiple retries: {str(e.last_attempt.exception())}")
+        except httpx.RequestError as e:
+            logger.error(f"Unrecoverable error occurred: {str(e)}")

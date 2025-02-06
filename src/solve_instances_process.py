@@ -5,7 +5,9 @@ import time
 
 from loguru import logger
 
+from src.config import Settings
 from src.solve_instances import solve_instances_handler
+from src.utils.git import accept_repo_invitations
 
 
 def main() -> None:
@@ -20,14 +22,20 @@ def main() -> None:
     logger.info("Starting solve instances process...")
 
     try:
+        counter = 0
         while True:
             try:
                 logger.info("Starting solve instances")
                 solve_instances_handler()
                 logger.info("Solve instances completed successfully")
+                if counter == 1:
+                    logger.info("Accepting invitations to private repos")
+                    accept_repo_invitations(Settings.github_pat)
+                    logger.info("Finished accepting invitations to private repos")
             except Exception as e:
                 logger.exception("Error during solve instances: %s", str(e))
             time.sleep(30)
+            counter = (counter + 1) % 10
     except KeyboardInterrupt:
         logger.info("Solve instances process stopped by user")
     except Exception as e:
