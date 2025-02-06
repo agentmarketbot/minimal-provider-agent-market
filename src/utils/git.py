@@ -268,8 +268,11 @@ def sync_fork_with_upstream(repo_path: str, github_token: str) -> None:
             logger.info("This repository is not a fork")
             return
 
-        # Add upstream remote if it doesn't exist
         upstream_url = parent_repo.clone_url
+
+        if upstream_url.startswith("https://"):
+            upstream_url = f"https://{github_token}@{upstream_url.split('://')[-1]}"
+
         try:
             upstream = repo.remote("upstream")
             if upstream.url != upstream_url:
