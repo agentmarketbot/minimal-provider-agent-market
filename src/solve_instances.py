@@ -228,8 +228,8 @@ def solve_instances_handler() -> None:
     logger.info(f"Found {len(awarded_proposals)} awarded proposals")
 
     for p in awarded_proposals:
-        instance_to_solve = _get_instance_to_solve(p["instance_id"], SETTINGS)
         try:
+            instance_to_solve = _get_instance_to_solve(p["instance_id"], SETTINGS)
             if not instance_to_solve or not instance_to_solve.repo_url:
                 continue
 
