@@ -240,27 +240,31 @@ def set_git_config(username: str, email: str, repo_dir: str):
 
 
 def sync_fork_with_upstream(repo_path: str, github_token: str) -> None:
-    """Sync a forked repository with its upstream (original) repository.
-
-    Args:
-        repo_path: Path to the local repository
-        github_token: GitHub personal access token
-    """
     try:
+        logger.info(f"Starting fork sync for repository at {repo_path}")
         repo = git.Repo(repo_path)
 
         # Get the remote URL and extract owner/repo
-        origin_url = repo.remotes.origin.url
+        origin_url = repo.remotes.origin.url.rstrip("/")
+        logger.debug(f"Original origin URL: {origin_url}")
+
         if origin_url.startswith("https://"):
             repo_path_str = origin_url.split("github.com/")[-1].removesuffix(".git")
+            logger.debug("Using HTTPS URL format")
         elif origin_url.startswith("git@"):
             repo_path_str = origin_url.split(":")[-1].removesuffix(".git")
+            logger.debug("Using SSH URL format")
         else:
+            logger.error(f"Unrecognized URL format: {origin_url}")
             raise ValueError("Unrecognized remote URL format")
+
+        logger.info(f"Extracted repository path: {repo_path_str}")
 
         # Connect to GitHub API
         g = github.Github(github_token)
+        logger.debug("Connected to GitHub API")
         fork_repo = g.get_repo(repo_path_str)
+        logger.info(f"Found fork repository: {fork_repo.full_name}")
 
         # Get the parent (upstream) repository
         parent_repo = fork_repo.parent
@@ -268,40 +272,59 @@ def sync_fork_with_upstream(repo_path: str, github_token: str) -> None:
             logger.info("This repository is not a fork")
             return
 
-        upstream_url = parent_repo.clone_url
+        logger.info(f"Found parent repository: {parent_repo.full_name}")
+        upstream_url = parent_repo.clone_url.rstrip("/")
+        logger.debug(f"Original upstream URL: {upstream_url}")
 
+        # Format upstream URL with token
         if upstream_url.startswith("https://"):
-            upstream_url = f"https://{github_token}@{upstream_url.split('://')[-1]}"
+            upstream_url = f"https://{github_token}@github.com/{parent_repo.full_name}.git"
+            logger.debug("Formatted upstream URL with token")
 
         try:
             upstream = repo.remote("upstream")
             if upstream.url != upstream_url:
+                logger.info("Updating existing upstream remote URL")
                 upstream.set_url(upstream_url)
         except ValueError:
+            logger.info("Creating new upstream remote")
             upstream = repo.create_remote("upstream", upstream_url)
 
         # Fetch from upstream
+        logger.info("Fetching from upstream...")
         upstream.fetch()
-        logger.info("Fetched latest changes from upstream repository")
+        logger.info("Successfully fetched latest changes from upstream repository")
 
-        # Get default branch (usually main or master)
+        # Get default branch
         default_branch = parent_repo.default_branch
+        logger.info(f"Using default branch: {default_branch}")
 
         # Sync fork with upstream
+        logger.info(f"Checking out {default_branch} branch")
         repo.git.checkout(default_branch)
-        repo.git.merge(f"upstream/{default_branch}")
-        logger.info(f"Merged upstream/{default_branch} into local {default_branch}")
 
-        # Push to origin
+        logger.info(f"Merging upstream/{default_branch}")
+        repo.git.merge(f"upstream/{default_branch}")
+        logger.info(f"Successfully merged upstream/{default_branch} into local {default_branch}")
+
+        # Format origin URL with token
         if origin_url.startswith("https://"):
-            new_origin_url = f"https://{github_token}@{origin_url.split('://')[-1]}"
+            new_origin_url = f"https://{github_token}@github.com/{repo_path_str}.git"
+            logger.debug("Updating origin URL with token")
             repo.remotes.origin.set_url(new_origin_url)
 
+        logger.info(f"Pushing to origin/{default_branch}")
         repo.remotes.origin.push(default_branch)
-        logger.info(f"Pushed synced {default_branch} to origin")
+        logger.info(f"Successfully pushed synced {default_branch} to origin")
 
+    except github.GithubException as e:
+        logger.error(f"GitHub API error: {e.status} - {e.data.get('message', '')}")
+        raise
+    except git.GitCommandError as e:
+        logger.error(f"Git command error: {e.command} - {e.stderr}")
+        raise
     except Exception as e:
-        logger.error(f"Error syncing fork with upstream: {e}")
+        logger.error(f"Error syncing fork with upstream: {str(e)}")
         raise
 
 
