@@ -1,16 +1,17 @@
 """Process that continuously solves awarded instances independently."""
 
+import asyncio
 import sys
 import time
 
 from loguru import logger
 
-from src.config import Settings
+from src.config import SETTINGS
 from src.solve_instances import solve_instances_handler
 from src.utils.git import accept_repo_invitations
 
 
-def main() -> None:
+async def main():
     """
     Continuously run solve instances as a standalone process.
 
@@ -30,7 +31,7 @@ def main() -> None:
                 logger.info("Solve instances completed successfully")
                 if counter == 1:
                     logger.info("Accepting invitations to private repos")
-                    accept_repo_invitations(Settings.github_pat)
+                    await accept_repo_invitations(SETTINGS.github_pat)
                     logger.info("Finished accepting invitations to private repos")
             except Exception as e:
                 logger.exception("Error during solve instances: %s", str(e))
@@ -44,4 +45,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
