@@ -129,7 +129,7 @@ def _solve_instance(
                 settings.foundation_model_name,
             )
         elif settings.agent_type == AgentType.aider:
-            logger.info(f"Aider agent type")
+            logger.info("Aider agent type")
             modify_repo_absolute_path = (
                 Path(os.path.dirname(os.path.abspath(__file__))) / "agents" / "aider_modify_repo.py"
             )
@@ -138,9 +138,6 @@ def _solve_instance(
 
             # test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
             test_command = ""
-            solver_command = utils.aider_get_solver_command(
-                solver_command, instance_to_solve.pr_comments
-            )
             logger.info(f"Solver command: {solver_command}")
             logger.info(f"Foundation model name: {settings.foundation_model_name.value}")
             logger.info(f"Architect model name: {settings.architect_model_name.value}")
