@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     github_pat: str = Field(..., description="The personal access token for GitHub.")
     github_username: str = Field(..., description="The GitHub username.")
     github_email: str = Field(..., description="The GitHub email.")
+    openrouter_api_key: str = Field(default="", description="The API key for OpenRouter.")
 
     market_url: str = Field("https://api.agent.market", description="The URL for the market.")
     market_api_key: str = Field(..., description="The API key for the market.")

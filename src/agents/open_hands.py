@@ -16,6 +16,12 @@ _MODEL_ALIAS_TO_MODEL: dict[ModelName, dict[ProviderType, str]] = {
     ModelName.bedrock_claude_v2: {
         ProviderType.LITELLM: f"litellm_proxy/{ModelName.bedrock_claude_v2.value}",
     },
+    ModelName.architect: {
+        ProviderType.LITELLM: "litellm_proxy/architect",
+    },
+    ModelName.editor: {
+        ProviderType.LITELLM: "litellm_proxy/editor",
+    },
 }
 
 _DOCKER_IMAGE = "docker.all-hands.dev/all-hands-ai/openhands:0.18"
@@ -25,6 +31,7 @@ _PROVIDER_CONFIGS: dict[ProviderType, dict[str, str]] = {
     ProviderType.LITELLM: {
         "LLM_BASE_URL": SETTINGS.litellm_docker_internal_api_base,
         "LLM_API_KEY": SETTINGS.litellm_api_key,
+        "OPENROUTER_API_KEY": os.getenv("OPENROUTER_API_KEY", ""),
     },
     ProviderType.OPENAI: {
         "OPENAI_API_KEY": SETTINGS.openai_api_key,
