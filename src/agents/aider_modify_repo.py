@@ -71,7 +71,8 @@ def main():
     modify_repo_with_aider(
         args.editor_model_name,
         solver_command,
-        args.test_command,
+        architect_model_name=args.architect_model_name,
+        test_command=args.test_command,
     )
 
 
