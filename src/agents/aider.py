@@ -100,6 +100,7 @@ def get_container_kwargs(
         ).strip(),
     ]
     env_vars = {key: os.getenv(key) for key in os.environ.keys()}
+    env_vars['OPENROUTER_API_KEY'] = SETTINGS.openrouter_api_key
     volumes = {
         f"{repo_directory}/.": {"bind": "/app", "mode": "rw"},
         "/tmp/aider_cache": {"bind": "/home/ubuntu", "mode": "rw"},
