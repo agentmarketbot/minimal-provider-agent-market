@@ -129,6 +129,7 @@ def _solve_instance(
                 settings.foundation_model_name,
             )
         elif settings.agent_type == AgentType.aider:
+            logger.info(f"Aider agent type")
             modify_repo_absolute_path = (
                 Path(os.path.dirname(os.path.abspath(__file__))) / "agents" / "aider_modify_repo.py"
             )
