@@ -1,3 +1,4 @@
+import base64
 import os
 import shlex
 
@@ -86,6 +87,8 @@ def get_container_kwargs(
     test_command: str,
     architect_model_name: str | None = None,
 ) -> str:
+    encoded_solver_command = base64.b64encode(solver_command.encode()).decode()
+
     test_args_and_command = f" --test-command {shlex.quote(test_command)}" if test_command else ""
     entrypoint = [
         "/bin/bash",
@@ -93,8 +96,8 @@ def get_container_kwargs(
         (
             "source /venv/bin/activate && "
             f"python modify_repo.py --editor-model-name {shlex.quote(model_name)} "
-            f"--solver-command {shlex.quote(solver_command)} "
-            f"--architect-model-name {shlex.quote(architect_model_name)} "
+            f"--solver-command-base64 {encoded_solver_command} "
+            f"--architect-model-name {shlex.quote(architect_model_name or '')} "
             f"{test_args_and_command}"
         ).strip(),
     ]

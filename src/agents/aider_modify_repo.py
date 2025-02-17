@@ -1,5 +1,5 @@
 import argparse
-import time
+import base64
 
 from aider.coders import Coder
 from aider.io import InputOutput
@@ -33,16 +33,15 @@ def modify_repo_with_aider(
 
 
 def main():
-    time.sleep(1000)
     parser = argparse.ArgumentParser(description="Modify a repository with Aider.")
     parser.add_argument(
         "--editor-model-name", type=str, required=True, help="The name of the model to use."
     )
     parser.add_argument(
-        "--solver-command",
+        "--solver-command-base64",
         type=str,
         required=True,
-        help="The command to run the solver.",
+        help="The base64-encoded command to run the solver.",
     )
     parser.add_argument(
         "--architect-model-name",
@@ -58,11 +57,15 @@ def main():
     )
 
     args = parser.parse_args()
-    print(args)
-    time.sleep(1000)
-    # modify_repo_with_aider(
-    #     args.editor_model_name, args.solver_command, args.architect_model_name, args.test_command,
-    # )
+
+    solver_command = base64.b64decode(args.solver_command_base64).decode()
+
+    modify_repo_with_aider(
+        args.editor_model_name,
+        solver_command,
+        args.architect_model_name,
+        args.test_command,
+    )
 
 
 if __name__ == "__main__":
