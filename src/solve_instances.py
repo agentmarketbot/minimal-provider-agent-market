@@ -145,7 +145,7 @@ def _solve_instance(
                 settings.foundation_model_name.value,
                 solver_command,
                 test_command,
-                settings.architect_model_name,
+                settings.architect_model_name.value,
             )
         elif settings.agent_type == AgentType.raaid:
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
