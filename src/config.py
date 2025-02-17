@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     architect_model_name: ModelName | None = Field(
         "openrouter/deepseek/deepseek-r1", description="The name of the architect model to use."
     )
+    openrouter_api_key: str = Field(..., description="The API key for OpenRouter.")
     openai_api_key: str = Field(..., description="The API key for OpenAI.")
     github_pat: str = Field(..., description="The personal access token for GitHub.")
     github_username: str = Field(..., description="The GitHub username.")
