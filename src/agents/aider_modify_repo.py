@@ -3,6 +3,7 @@ import argparse
 from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
+import time
 
 
 def modify_repo_with_aider(
@@ -54,6 +55,7 @@ def main():
 
     args = parser.parse_args()
     print(args)
+    time.sleep(1000)
     # modify_repo_with_aider(
     #     args.editor_model_name, args.solver_command, args.test_command, args.architect_model_name
     # )
