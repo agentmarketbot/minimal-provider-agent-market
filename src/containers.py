@@ -44,7 +44,7 @@ def _clean_logs(logs: str) -> str:
 
 
 def launch_container_with_repo_mounted(
-    timeout: int = 1800,
+    timeout: int = 3600,
     **kwargs,
 ) -> str:
     docker_client = docker_from_env()
@@ -60,7 +60,6 @@ def launch_container_with_repo_mounted(
     try:
         logger.info(f"Waiting for container to finish (timeout: {timeout}s)")
         result = container.wait(timeout=timeout)
-
         logger.info(f"Container exited with status code: {result['StatusCode']}")
         if result["StatusCode"] != 0:
             raise Exception(f"Container exited with non-zero status code: {result['StatusCode']}")

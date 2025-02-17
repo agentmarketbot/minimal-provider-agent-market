@@ -95,7 +95,7 @@ def get_container_kwargs(
         "-c",
         (
             "source /venv/bin/activate && "
-            f"python modify_repo.py --editor-model-name {shlex.quote(model_name)} "
+            f"python aider_modify_repo.py --editor-model-name {shlex.quote(model_name)} "
             f"--solver-command-base64 {encoded_solver_command} "
             f"--architect-model-name {shlex.quote(architect_model_name or '')} "
             f"{test_args_and_command}"
@@ -104,7 +104,7 @@ def get_container_kwargs(
     logger.info(f"Entrypoint: {entrypoint}")
     env_vars = {key: os.getenv(key) for key in os.environ.keys()}
     volumes = {
-        f"{repo_directory}/.": {"bind": "/app", "mode": "rw"},
+        repo_directory: {"bind": "/app", "mode": "rw"},
         "/tmp/aider_cache": {"bind": "/home/ubuntu", "mode": "rw"},
     }
     user = f"{os.getuid()}:{os.getgid()}"
