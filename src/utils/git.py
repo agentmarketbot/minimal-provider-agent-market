@@ -52,16 +52,30 @@ def add_and_commit(repo_path: str) -> None:
         logger.info(f"Repository initialized at {repo_path}")
 
         if repo.is_dirty(untracked_files=True):
-            logger.info("Repository is dirty. Staging all changes.")
-            repo.git.add(A=True)
-            logger.info("All changes staged successfully.")
+            logger.info("Repository is dirty. Staging changes except aider files.")
 
-            commit_message = generate_commit_message(repo_path)
-            if commit_message is None:
-                commit_message = "agent bot commit"  # Fallback if generation fails
+            changed_files = [item.a_path for item in repo.index.diff(None)]
+            untracked_files = repo.untracked_files
+            all_files = changed_files + untracked_files
 
-            repo.index.commit(commit_message)
-            logger.info(f"Changes committed with message: '{commit_message}'")
+            files_to_stage = [
+                f
+                for f in all_files
+                if not f.startswith(".aider") and not f.endswith("aider_modify_repo.py")
+            ]
+
+            if files_to_stage:
+                repo.index.add(files_to_stage)
+                logger.info("Changes staged successfully (excluding aider files).")
+
+                commit_message = generate_commit_message(repo_path)
+                if commit_message is None:
+                    commit_message = "agent bot commit"
+
+                repo.index.commit(commit_message)
+                logger.info(f"Changes committed with message: '{commit_message}'")
+            else:
+                logger.info("No non-aider files to stage. Skipping commit.")
         else:
             logger.info("No unstaged changes detected. Nothing to commit.")
 
