@@ -140,6 +140,9 @@ def _solve_instance(
             solver_command = utils.aider_get_solver_command(
                 solver_command, instance_to_solve.pr_comments
             )
+            logger.info(f"Solver command: {solver_command}")
+            logger.info(f"Foundation model name: {settings.foundation_model_name.value}")
+            logger.info(f"Architect model name: {settings.architect_model_name.value}")
             container_kwargs = agents.aider_get_container_kwargs(
                 str(repo_absolute_path),
                 settings.foundation_model_name.value,
