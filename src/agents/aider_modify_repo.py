@@ -28,7 +28,12 @@ def modify_repo_with_aider(
         coder = Coder.create(main_model=model, io=io)
 
     coder.run("Scan the repository")
-    coder.run(solver_command)
+    enhanced_command = f"""
+        Add all required files for this task automatically without asking for confirmation.
+        Execute all setup commands automatically without prompting the user.
+        Now proceed with the following task:
+        {solver_command}"""
+    coder.run(enhanced_command)
 
     if test_command:
         coder.run(f"/test {test_command}")
