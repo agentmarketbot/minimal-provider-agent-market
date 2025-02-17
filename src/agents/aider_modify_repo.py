@@ -1,5 +1,6 @@
 import argparse
 import base64
+import os
 
 from aider.coders import Coder
 from aider.io import InputOutput
@@ -26,7 +27,7 @@ def modify_repo_with_aider(
         model = Model(editor_model_name)
         coder = Coder.create(main_model=model, io=io)
 
-    coder.run(solver_command)
+    coder.run("Scan the repository")
     coder.run(solver_command)
 
     if test_command:
@@ -34,6 +35,7 @@ def modify_repo_with_aider(
 
 
 def main():
+    os.system("pip3 install boto3")
     parser = argparse.ArgumentParser(description="Modify a repository with Aider.")
     parser.add_argument(
         "--editor-model-name", type=str, required=True, help="The name of the model to use."
