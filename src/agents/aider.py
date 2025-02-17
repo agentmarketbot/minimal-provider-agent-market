@@ -98,6 +98,7 @@ def get_container_kwargs(
             f"{test_args_and_command}"
         ).strip(),
     ]
+    logger.info(f"Entrypoint: {entrypoint}")
     env_vars = {key: os.getenv(key) for key in os.environ.keys()}
     volumes = {
         f"{repo_directory}/.": {"bind": "/app", "mode": "rw"},
