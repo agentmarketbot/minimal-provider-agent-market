@@ -1,13 +1,16 @@
 import argparse
+import time
 
 from aider.coders import Coder
 from aider.io import InputOutput
 from aider.models import Model
-import time
 
 
 def modify_repo_with_aider(
-    editor_model_name, solver_command, architect_model_name=None, test_command=None,
+    editor_model_name,
+    solver_command,
+    architect_model_name=None,
+    test_command=None,
 ) -> None:
     io = InputOutput(yes=True)
     if architect_model_name is not None:
@@ -58,7 +61,7 @@ def main():
     print(args)
     time.sleep(1000)
     # modify_repo_with_aider(
-    #     args.editor_model_name, args.solver_command, args.architect_model_name args.test_command,
+    #     args.editor_model_name, args.solver_command, args.architect_model_name, args.test_command,
     # )
 
 

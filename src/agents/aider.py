@@ -86,17 +86,14 @@ def get_container_kwargs(
     test_command: str,
     architect_model_name: str | None = None,
 ) -> str:
-    escaped_solver_command = solver_command.replace("'", "'\"'\"'")
-    escaped_test_command = shlex.quote(test_command) if test_command else ""
-
-    test_args_and_command = f" --test-command {escaped_test_command}" if test_command else ""
+    test_args_and_command = f" --test-command {shlex.quote(test_command)}" if test_command else ""
     entrypoint = [
         "/bin/bash",
         "-c",
         (
             "source /venv/bin/activate && "
             f"python modify_repo.py --editor-model-name {shlex.quote(model_name)} "
-            f"--solver-command '{escaped_solver_command}' "
+            f"--solver-command {shlex.quote(solver_command)} "
             f"--architect-model-name {shlex.quote(architect_model_name)} "
             f"{test_args_and_command}"
         ).strip(),
