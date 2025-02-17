@@ -27,6 +27,7 @@ def modify_repo_with_aider(
         coder = Coder.create(main_model=model, io=io)
 
     coder.run(solver_command)
+    coder.run(solver_command)
 
     if test_command:
         coder.run(f"/test {test_command}")
@@ -63,7 +64,6 @@ def main():
     modify_repo_with_aider(
         args.editor_model_name,
         solver_command,
-        args.architect_model_name,
         args.test_command,
     )
 
