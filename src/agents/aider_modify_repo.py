@@ -53,10 +53,10 @@ def main():
     )
 
     args = parser.parse_args()
-
-    modify_repo_with_aider(
-        args.editor_model_name, args.solver_command, args.test_command, args.architect_model_name
-    )
+    print(args)
+    # modify_repo_with_aider(
+    #     args.editor_model_name, args.solver_command, args.test_command, args.architect_model_name
+    # )
 
 
 if __name__ == "__main__":
