@@ -135,7 +135,8 @@ def _solve_instance(
             utils.copy_file_to_directory(modify_repo_absolute_path, repo_absolute_path)
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
 
-            test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
+            # test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
+            test_command = ""
             solver_command = utils.aider_get_solver_command(
                 solver_command, instance_to_solve.pr_comments
             )
@@ -144,6 +145,7 @@ def _solve_instance(
                 settings.foundation_model_name.value,
                 solver_command,
                 test_command,
+                settings.architect_model_name,
             )
         elif settings.agent_type == AgentType.raaid:
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
