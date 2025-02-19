@@ -136,11 +136,7 @@ def _solve_instance(
             utils.copy_file_to_directory(modify_repo_absolute_path, repo_absolute_path)
             utils.change_directory_ownership_recursive(repo_absolute_path, os.getuid(), os.getgid())
 
-            # test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
-            test_command = ""
-            logger.info(f"Solver command: {solver_command}")
-            logger.info(f"Foundation model name: {settings.foundation_model_name.value}")
-            logger.info(f"Architect model name: {settings.architect_model_name.value}")
+            test_command = agents.aider_suggest_test_command(str(repo_absolute_path))
             container_kwargs = agents.aider_get_container_kwargs(
                 str(repo_absolute_path),
                 settings.foundation_model_name.value,
