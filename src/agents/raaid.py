@@ -4,6 +4,18 @@ from src.config import SETTINGS
 from src.enums import ModelName
 
 
+def parse_aider_flags(flags_str: str | None = None) -> str:
+    """Parse aider flags from environment variable or default value.
+    
+    Args:
+        flags_str: Optional string of comma-separated flags. If None, reads from AIDER_FLAGS env var.
+    
+    Returns:
+        Formatted string of aider command line flags.
+    """
+    flags = (flags_str or os.getenv("AIDER_FLAGS", "architect-mode")).split(",")
+    return " ".join(f"--{flag.strip()}" for flag in flags)
+
 def get_container_kwargs(
     repo_directory: str,
     solver_command: str,
@@ -12,8 +24,7 @@ def get_container_kwargs(
     expert_model: str = "openrouter/deepseek/deepseek-r1",
 ) -> str:
     escaped_solver_command = solver_command.replace('"', '\\"')
-    aider_flags = os.getenv("AIDER_FLAGS", "architect-mode").split(",")
-    aider_flags_str = " ".join(f"--{flag.strip()}" for flag in aider_flags)
+    aider_flags_str = parse_aider_flags()
     
     entrypoint = [
         "/bin/bash",
