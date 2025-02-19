@@ -11,13 +11,13 @@ def get_container_kwargs(
     expert_provider: str = "openrouter",
     expert_model: str = "openrouter/deepseek/deepseek-r1",
 ) -> str:
-    escaped_solver_command = solver_command.replace("'", "'\"'\"'")
+    escaped_solver_command = solver_command.replace('"', '\\"')
     entrypoint = [
         "/bin/bash",
         "-c",
         (
             "source /venv/bin/activate && "
-            f"ra-aid -m '{escaped_solver_command}' --provider openai-compatible --model {model_name.value} --expert-provider {expert_provider} --expert-model {expert_model} --cowboy-mode"  # noqa: E501
+            f'ra-aid -m "{escaped_solver_command}" --provider openai-compatible --model {model_name.value} --expert-provider {expert_provider} --expert-model {expert_model} --cowboy-mode'  # noqa: E501
         ).strip(),
     ]
 
