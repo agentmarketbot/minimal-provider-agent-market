@@ -12,12 +12,15 @@ def get_container_kwargs(
     expert_model: str = "openrouter/deepseek/deepseek-r1",
 ) -> str:
     escaped_solver_command = solver_command.replace('"', '\\"')
+    aider_flags = os.getenv("AIDER_FLAGS", "architect-mode").split(",")
+    aider_flags_str = " ".join(f"--{flag.strip()}" for flag in aider_flags)
+    
     entrypoint = [
         "/bin/bash",
         "-c",
         (
             "source /venv/bin/activate && "
-            f'ra-aid -m "{escaped_solver_command}" --provider openai-compatible --model {model_name.value} --expert-provider {expert_provider} --expert-model {expert_model} --cowboy-mode'  # noqa: E501
+            f'ra-aid -m "{escaped_solver_command}" --provider openai-compatible --model {model_name.value} --expert-provider {expert_provider} --expert-model {expert_model} --cowboy-mode {aider_flags_str}'  # noqa: E501
         ).strip(),
     ]
 
