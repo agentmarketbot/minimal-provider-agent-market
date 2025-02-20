@@ -17,8 +17,8 @@ def get_container_kwargs(
         "-c",
         (
             f'source /venv/bin/activate && ra-aid -m "{escaped_solver_command}" '
-            f"--provider {model_provider} --model {model_name.value} "
-            f"--expert-provider {expert_provider} --expert-model {model_name.value} "
+            f"--provider openrouter --model google/gemini-2.0-flash-001 "
+            f"--expert-provider openrouter --expert-model openai/o3-mini-high "
             f"--cowboy-mode"
         ).strip(),
     ]
