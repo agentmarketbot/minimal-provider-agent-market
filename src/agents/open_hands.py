@@ -59,6 +59,7 @@ def get_container_kwargs(
         "TRACK_API_COSTS": "true",
         "COST_TRACKER_MODEL": model_name.value,
         "COST_TRACKER_PROVIDER": SETTINGS.provider.value,
+        "COST_TRACKER_AGENT_TYPE": "openhands",
     }
     for key, value in _PROVIDER_CONFIGS[SETTINGS.provider].items():
         env_vars[key] = value

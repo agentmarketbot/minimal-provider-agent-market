@@ -36,6 +36,7 @@ def get_container_kwargs(
         "COST_TRACKER_PROVIDER": model_provider,
         "COST_TRACKER_EXPERT_MODEL": "o3-mini",
         "COST_TRACKER_EXPERT_PROVIDER": expert_provider,
+        "COST_TRACKER_AGENT_TYPE": "raaid",
     })
     user = f"{os.getuid()}:{os.getgid()}"
     kwargs = {

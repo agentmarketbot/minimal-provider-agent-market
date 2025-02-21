@@ -39,7 +39,7 @@ def _get_readme_content(repo_path: str) -> str:
 def suggest_test_command(repo_path: str) -> str:
     logger.info(f"Starting test command suggestion process for repo: {repo_path}")
     # Initialize cost tracker for the weak model
-    cost_tracker = CostTracker(ModelName.gpt_4o, ProviderType.OPENAI)
+    cost_tracker = CostTracker(ModelName.gpt_4o, ProviderType.OPENAI, agent_type="aider")
     readme_content = _get_readme_content(repo_path)
 
     if not readme_content:
